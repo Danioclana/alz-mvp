@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { DeviceSchema } from '@/lib/validations/device';
+import { ensureUserExists } from '@/lib/services/user-sync';
 
 type RouteContext = {
   params: Promise<{ hardwareId: string }>;
@@ -23,13 +24,19 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const userIdSupabase = await ensureUserExists();
+    if (!userIdSupabase) {
+      return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
+    }
 
-    // Buscar device (RLS garante ownership)
+    const supabase = await createClient({ useServiceRole: true });
+
+    // Buscar device garantindo ownership
     const { data: device, error } = await supabase
       .from('devices')
       .select('*')
       .eq('hardware_id', hardwareId)
+      .eq('user_id', userIdSupabase)
       .single();
 
     if (error || !device) {
@@ -62,6 +69,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userIdSupabase = await ensureUserExists();
+    if (!userIdSupabase) {
+      return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
+    }
+
     const body = await request.json();
     const validation = DeviceSchema.partial().safeParse(body);
 
@@ -72,13 +84,14 @@ export async function PUT(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = await createClient({ useServiceRole: true });
 
     // Buscar device para verificar ownership
     const { data: existingDevice } = await supabase
       .from('devices')
       .select('id')
       .eq('hardware_id', hardwareId)
+      .eq('user_id', userIdSupabase)
       .single();
 
     if (!existingDevice) {
@@ -94,6 +107,7 @@ export async function PUT(
       .from('devices')
       .update(updateData)
       .eq('hardware_id', hardwareId)
+      .eq('user_id', userIdSupabase)
       .select()
       .single();
 
@@ -130,13 +144,19 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const userIdSupabase = await ensureUserExists();
+    if (!userIdSupabase) {
+      return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
+    }
 
-    // Deletar device (RLS garante ownership)
+    const supabase = await createClient({ useServiceRole: true });
+
+    // Deletar device garantindo ownership
     const { error } = await supabase
       .from('devices')
       .delete()
-      .eq('hardware_id', hardwareId);
+      .eq('hardware_id', hardwareId)
+      .eq('user_id', userIdSupabase);
 
     if (error) {
       return NextResponse.json(

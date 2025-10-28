@@ -3,6 +3,8 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { DeviceCard } from '@/components/devices/DeviceCard';
+import { createClient } from '@/lib/supabase/server';
+import { ensureUserExists } from '@/lib/services/user-sync';
 
 async function getDevices() {
   const { userId } = await auth();
@@ -12,18 +14,41 @@ async function getDevices() {
   }
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/devices`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch devices');
+    const userIdSupabase = await ensureUserExists();
+    if (!userIdSupabase) {
+      console.error('Failed to sync user');
+      return [];
     }
 
-    return await response.json();
+    const supabase = await createClient({ useServiceRole: true });
+
+    const { data: devices, error } = await supabase
+      .from('devices')
+      .select(`
+        *,
+        locations (
+          latitude,
+          longitude,
+          timestamp,
+          battery_level
+        )
+      `)
+      .eq('user_id', userIdSupabase)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching devices:', error);
+      return [];
+    }
+
+    // Formatar resposta (incluir lastLocation se existir)
+    const formattedDevices = devices.map((device: any) => ({
+      ...device,
+      lastLocation: device.locations && device.locations.length > 0 ? device.locations[0] : null,
+      locations: undefined,
+    }));
+
+    return formattedDevices;
   } catch (error) {
     console.error('Error fetching devices:', error);
     return [];
@@ -38,7 +63,7 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-4xl font-light tracking-tight text-gray-900">Dispositivos</h1>
-          <p className="text-gray-600 mt-2 font-light">
+          <p className="text-gray-700 mt-2 font-light">
             Gerencie e monitore seus dispositivos
           </p>
         </div>
@@ -53,7 +78,7 @@ export default async function DashboardPage() {
           <h3 className="text-2xl font-light text-gray-900 mb-3">
             Nenhum dispositivo cadastrado
           </h3>
-          <p className="text-gray-600 mb-8 font-light max-w-md mx-auto">
+          <p className="text-gray-700 mb-8 font-light max-w-md mx-auto">
             Comece adicionando seu primeiro dispositivo de rastreamento
           </p>
           <Link href="/devices/new">
@@ -73,7 +98,7 @@ export default async function DashboardPage() {
           <h3 className="text-lg font-medium text-emerald-900 mb-4">
             💡 Dicas Rápidas
           </h3>
-          <ul className="space-y-3 text-sm text-emerald-800">
+          <ul className="space-y-3 text-sm text-emerald-900">
             <li className="flex items-start gap-2">
               <span className="text-emerald-600">•</span>
               <span className="font-light">Clique em um dispositivo para ver detalhes completos</span>

@@ -17,11 +17,16 @@ export async function ensureUserExists(): Promise<number | null> {
     const supabase = await createClient({ useServiceRole: true });
 
     // Tentar buscar usuário existente
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select('id')
       .eq('clerk_id', clerkUser.id)
       .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching user from Supabase:', fetchError);
+      return null;
+    }
 
     // Se usuário já existe, retornar ID
     if (existingUser) {
@@ -56,7 +61,7 @@ export async function ensureUserExists(): Promise<number | null> {
     console.log('✅ User created automatically in Supabase:', clerkUser.id);
     return newUser.id;
   } catch (error) {
-    console.error('Error ensuring user exists:', error);
+    console.error('Unexpected error in ensureUserExists:', error);
     return null;
   }
 }

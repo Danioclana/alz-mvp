@@ -3,6 +3,8 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapWrapper } from '@/components/map/MapWrapper';
+import { createClient } from '@/lib/supabase/server';
+import { ensureUserExists } from '@/lib/services/user-sync';
 
 async function getDevicesWithLocations() {
   const { userId } = await auth();
@@ -12,26 +14,43 @@ async function getDevicesWithLocations() {
   }
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/devices`, {
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
+    const userIdSupabase = await ensureUserExists();
+    if (!userIdSupabase) {
+      console.error('Failed to sync user');
       return [];
     }
 
-    const devices = await response.json();
+    const supabase = await createClient({ useServiceRole: true });
+
+    const { data: devices, error } = await supabase
+      .from('devices')
+      .select(`
+        *,
+        locations (
+          latitude,
+          longitude,
+          timestamp,
+          battery_level
+        )
+      `)
+      .eq('user_id', userIdSupabase)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching devices:', error);
+      return [];
+    }
 
     // Filtrar apenas dispositivos com localização
     return devices
-      .filter((device: any) => device.lastLocation)
+      .filter((device: any) => device.locations && device.locations.length > 0)
       .map((device: any) => ({
-        latitude: device.lastLocation.latitude,
-        longitude: device.lastLocation.longitude,
+        latitude: device.locations[0].latitude,
+        longitude: device.locations[0].longitude,
         deviceName: device.name,
         patientName: device.patient_name,
-        timestamp: device.lastLocation.timestamp,
-        batteryLevel: device.battery_level,
+        timestamp: device.locations[0].timestamp,
+        batteryLevel: device.locations[0].battery_level,
       }));
   } catch (error) {
     console.error('Error fetching devices:', error);
@@ -46,7 +65,7 @@ export default async function MapPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-light tracking-tight text-gray-900">Mapa de Localização</h1>
-        <p className="text-gray-600 mt-2 font-light">
+        <p className="text-gray-700 mt-2 font-light">
           Visualize a localização de todos os seus dispositivos em tempo real
         </p>
       </div>
@@ -63,7 +82,7 @@ export default async function MapPage() {
                 <h3 className="text-2xl font-light text-gray-900 mb-3">
                   Nenhuma localização disponível
                 </h3>
-                <p className="text-gray-600 font-light max-w-md mx-auto">
+                <p className="text-gray-700 font-light max-w-md mx-auto">
                   Adicione dispositivos e aguarde o ESP32 enviar os primeiros dados de localização
                 </p>
                 <Link

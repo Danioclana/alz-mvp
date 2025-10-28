@@ -23,9 +23,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
     }
 
-    const supabase = await createClient();
+    // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
+    const supabase = await createClient({ useServiceRole: true });
 
-    // 3. Buscar devices (RLS automático)
+    // 3. Buscar devices
     const { data: devices, error } = await supabase
       .from('devices')
       .select(`
@@ -100,7 +101,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
     }
 
-    const supabase = await createClient();
+    // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
+    const supabase = await createClient({ useServiceRole: true });
 
     // 4. Verificar se hardwareId já existe
     const { data: existing } = await supabase

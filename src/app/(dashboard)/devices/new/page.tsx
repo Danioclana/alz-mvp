@@ -12,7 +12,7 @@ export default function NewDevicePage() {
           ← Voltar para Dashboard
         </Link>
         <h1 className="text-4xl font-light tracking-tight text-gray-900">Novo Dispositivo</h1>
-        <p className="text-gray-600 mt-2 font-light">
+        <p className="text-gray-700 mt-2 font-light">
           Adicione um novo dispositivo de rastreamento
         </p>
       </div>
@@ -23,7 +23,7 @@ export default function NewDevicePage() {
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Como configurar seu ESP32
         </h3>
-        <ol className="space-y-3 text-sm text-gray-700">
+        <ol className="space-y-3 text-sm text-gray-800">
           <li className="flex gap-3">
             <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-medium">1</span>
             <span className="font-light">Programe seu ESP32 com o código fornecido no blueprint</span>
