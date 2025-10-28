@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { DeviceSchema } from '@/lib/validations/device';
+import { ensureUserExists } from '@/lib/services/user-sync';
 
 /**
  * GET /api/devices
@@ -15,17 +16,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Buscar user_id do Supabase
-    const supabase = await createClient();
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', userId)
-      .single();
+    // 2. Garantir que usuário existe no Supabase (cria automaticamente se necessário)
+    const userIdSupabase = await ensureUserExists();
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!userIdSupabase) {
+      return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
     }
+
+    const supabase = await createClient();
 
     // 3. Buscar devices (RLS automático)
     const { data: devices, error } = await supabase
@@ -39,7 +37,7 @@ export async function GET(request: NextRequest) {
           battery_level
         )
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', userIdSupabase)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -95,17 +93,14 @@ export async function POST(request: NextRequest) {
 
     const { hardwareId, name, patientName } = validation.data;
 
-    // 3. Buscar user_id
-    const supabase = await createClient();
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', userId)
-      .single();
+    // 3. Garantir que usuário existe no Supabase (cria automaticamente se necessário)
+    const userIdSupabase = await ensureUserExists();
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!userIdSupabase) {
+      return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
     }
+
+    const supabase = await createClient();
 
     // 4. Verificar se hardwareId já existe
     const { data: existing } = await supabase
@@ -125,7 +120,7 @@ export async function POST(request: NextRequest) {
     const { data: device, error } = await supabase
       .from('devices')
       .insert({
-        user_id: user.id,
+        user_id: userIdSupabase,
         hardware_id: hardwareId,
         name,
         patient_name: patientName,
