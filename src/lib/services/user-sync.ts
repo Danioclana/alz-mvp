@@ -11,8 +11,11 @@ export async function ensureUserExists(): Promise<number | null> {
     const clerkUser = await currentUser();
 
     if (!clerkUser) {
+      console.error('[ensureUserExists] No Clerk user found');
       return null;
     }
+
+    console.log('[ensureUserExists] Clerk user ID:', clerkUser.id);
 
     const supabase = await createClient({ useServiceRole: true });
 
@@ -23,6 +26,8 @@ export async function ensureUserExists(): Promise<number | null> {
       .eq('clerk_id', clerkUser.id)
       .single();
 
+    console.log('[ensureUserExists] Fetch result:', { existingUser, fetchError });
+
     if (fetchError && fetchError.code !== 'PGRST116') {
       console.error('Error fetching user from Supabase:', fetchError);
       return null;
@@ -30,6 +35,7 @@ export async function ensureUserExists(): Promise<number | null> {
 
     // Se usuário já existe, retornar ID
     if (existingUser) {
+      console.log('[ensureUserExists] User already exists, ID:', existingUser.id);
       return existingUser.id;
     }
 
@@ -37,9 +43,11 @@ export async function ensureUserExists(): Promise<number | null> {
     const email = clerkUser.emailAddresses[0]?.emailAddress;
 
     if (!email) {
-      console.error('User has no email address');
+      console.error('[ensureUserExists] User has no email address');
       return null;
     }
+
+    console.log('[ensureUserExists] Creating new user with email:', email);
 
     const { data: newUser, error } = await supabase
       .from('users')
@@ -54,11 +62,11 @@ export async function ensureUserExists(): Promise<number | null> {
       .single();
 
     if (error) {
-      console.error('Error creating user in Supabase:', error);
+      console.error('[ensureUserExists] Error creating user:', error);
       return null;
     }
 
-    console.log('✅ User created automatically in Supabase:', clerkUser.id);
+    console.log('[ensureUserExists] ✅ User created successfully, ID:', newUser.id);
     return newUser.id;
   } catch (error) {
     console.error('Unexpected error in ensureUserExists:', error);

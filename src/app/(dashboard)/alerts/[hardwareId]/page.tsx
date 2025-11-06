@@ -1,91 +1,117 @@
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+'use client';
 
-export default async function AlertsPage({
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { AlertConfig, Device } from '@/types';
+import { AlertConfigForm } from '@/components/alerts/AlertConfigForm';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+
+export default function AlertsPage({
   params,
 }: {
   params: Promise<{ hardwareId: string }>;
 }) {
-  const { hardwareId } = await params;
+  const router = useRouter();
+  const [hardwareId, setHardwareId] = useState<string>('');
+  const [config, setConfig] = useState<AlertConfig | null>(null);
+  const [device, setDevice] = useState<Device | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    params.then(p => setHardwareId(p.hardwareId));
+  }, [params]);
+
+  useEffect(() => {
+    if (hardwareId) {
+      fetchData();
+    }
+  }, [hardwareId]);
+
+  const fetchData = async () => {
+    try {
+      // Fetch device
+      const deviceRes = await fetch('/api/devices');
+      if (deviceRes.ok) {
+        const devices = await deviceRes.json();
+        const currentDevice = devices.find((d: Device) => d.hardware_id === hardwareId);
+        setDevice(currentDevice);
+      }
+
+      // Fetch config
+      const configRes = await fetch(`/api/alerts/${hardwareId}/config`);
+      if (configRes.ok) {
+        const data = await configRes.json();
+        setConfig(data);
+      } else {
+        console.error('Failed to fetch alert config:', configRes.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (newConfig: AlertConfig) => {
+    const res = await fetch(`/api/alerts/${hardwareId}/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        alertsEnabled: newConfig.alerts_enabled,
+        recipientEmails: newConfig.recipient_emails,
+        alertFrequencyMinutes: newConfig.alert_frequency_minutes,
+      }),
+    });
+
+    if (!res.ok) throw new Error('Failed to save config');
+
+    setConfig(newConfig);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-lg">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="mb-6">
-        <Link
-          href={`/devices/${hardwareId}`}
-          className="text-sm text-blue-600 hover:text-blue-700 mb-2 inline-block"
-        >
-          ← Voltar para Dispositivo
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Configuração de Alertas</h1>
-        <p className="text-gray-600 mt-1">
-          Configure como e quando você deseja receber notificações
-        </p>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Alertas - {device?.name || hardwareId}
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Configure como e quando você deseja receber notificações
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Status dos Alertas</CardTitle>
-              <Badge variant="success">Ativos</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Alertas de Geofence</p>
-              <p className="font-medium">Habilitados</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Frequência de Alertas</p>
-              <p className="font-medium">A cada 5 minutos</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Último Alerta Enviado</p>
-              <p className="text-sm">Nenhum alerta enviado ainda</p>
-            </div>
-            <Button variant="secondary" className="w-full">
-              Pausar Alertas por 1 hora
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Destinatários</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <div className="text-4xl mb-2">📧</div>
-              <p className="text-gray-600 mb-4">Nenhum email configurado</p>
-              <Button size="sm">+ Adicionar Email</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Histórico de Alertas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <div className="text-4xl mb-2">📋</div>
-            <p className="text-gray-600">Nenhum alerta registrado ainda</p>
-          </div>
-        </CardContent>
-      </Card>
+      {config && (
+        <AlertConfigForm
+          hardwareId={hardwareId}
+          initialConfig={config}
+          onSave={handleSave}
+        />
+      )}
 
       <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-          ⚠️ Importante
+          Importante
         </h3>
         <ul className="space-y-2 text-sm text-yellow-800">
           <li>• Configure pelo menos um email para receber alertas</li>
           <li>• Os alertas só são enviados quando há geofences configuradas</li>
-          <li>• Use o modo pausar para situações onde você está acompanhando o paciente</li>
           <li>• Verifique sua caixa de spam se não estiver recebendo os emails</li>
         </ul>
       </div>

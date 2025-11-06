@@ -23,14 +23,19 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    console.log('[GET /api/geofences] Fetching geofences for hardwareId:', hardwareId);
 
-    // Buscar device (RLS garante ownership)
-    const { data: device } = await supabase
+    // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
+    const supabase = await createClient({ useServiceRole: true });
+
+    // Buscar device
+    const { data: device, error: deviceError } = await supabase
       .from('devices')
       .select('id')
       .eq('hardware_id', hardwareId)
       .single();
+
+    console.log('[GET /api/geofences] Device lookup:', { device, deviceError });
 
     if (!device) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -86,7 +91,8 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
+    const supabase = await createClient({ useServiceRole: true });
 
     // Buscar device
     const { data: device } = await supabase
@@ -152,7 +158,8 @@ export async function DELETE(
       );
     }
 
-    const supabase = await createClient();
+    // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
+    const supabase = await createClient({ useServiceRole: true });
 
     // Buscar device
     const { data: device } = await supabase

@@ -12,12 +12,15 @@ export async function GET(request: NextRequest) {
   try {
     // 1. Autenticação
     const { userId } = await auth();
+    console.log('[GET /api/devices] Clerk userId:', userId);
+
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // 2. Garantir que usuário existe no Supabase (cria automaticamente se necessário)
     const userIdSupabase = await ensureUserExists();
+    console.log('[GET /api/devices] Supabase userId:', userIdSupabase);
 
     if (!userIdSupabase) {
       return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
@@ -27,6 +30,8 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient({ useServiceRole: true });
 
     // 3. Buscar devices
+    console.log('[GET /api/devices] Querying devices for user_id:', userIdSupabase);
+
     const { data: devices, error } = await supabase
       .from('devices')
       .select(`
@@ -40,6 +45,12 @@ export async function GET(request: NextRequest) {
       `)
       .eq('user_id', userIdSupabase)
       .order('created_at', { ascending: false });
+
+    console.log('[GET /api/devices] Query result:', {
+      deviceCount: devices?.length || 0,
+      error,
+      devices: devices?.map(d => ({ id: d.id, hardware_id: d.hardware_id, name: d.name }))
+    });
 
     if (error) {
       console.error('Error fetching devices:', error);
@@ -96,6 +107,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Garantir que usuário existe no Supabase (cria automaticamente se necessário)
     const userIdSupabase = await ensureUserExists();
+    console.log('[POST /api/devices] Supabase userId:', userIdSupabase);
 
     if (!userIdSupabase) {
       return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 });
@@ -105,13 +117,22 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient({ useServiceRole: true });
 
     // 4. Verificar se hardwareId já existe
-    const { data: existing } = await supabase
+    console.log('[POST /api/devices] Checking if hardwareId exists:', hardwareId);
+
+    const { data: existing, error: existingError } = await supabase
       .from('devices')
-      .select('id')
+      .select('id, user_id, hardware_id')
       .eq('hardware_id', hardwareId)
-      .single();
+      .maybeSingle();
+
+    console.log('[POST /api/devices] Existing device check:', { existing, existingError });
 
     if (existing) {
+      console.log('[POST /api/devices] Device already exists!', {
+        existingUserId: existing.user_id,
+        currentUserId: userIdSupabase,
+        sameUser: existing.user_id === userIdSupabase
+      });
       return NextResponse.json(
         { error: 'Device with this hardware ID already exists' },
         { status: 409 }

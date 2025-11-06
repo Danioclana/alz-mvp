@@ -1,55 +1,133 @@
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+'use client';
 
-export default async function GeofencesPage({
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Geofence, Device } from '@/types';
+import { GoogleGeofenceEditor } from '@/components/geofences/GoogleGeofenceEditor';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+
+export default function GeofencesPage({
   params,
 }: {
   params: Promise<{ hardwareId: string }>;
 }) {
-  const { hardwareId } = await params;
+  const router = useRouter();
+  const [hardwareId, setHardwareId] = useState<string>('');
+  const [geofences, setGeofences] = useState<Geofence[]>([]);
+  const [device, setDevice] = useState<Device | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    params.then(p => setHardwareId(p.hardwareId));
+  }, [params]);
+
+  useEffect(() => {
+    if (hardwareId) {
+      fetchData();
+    }
+  }, [hardwareId]);
+
+  const fetchData = async () => {
+    try {
+      // Fetch device info
+      const deviceRes = await fetch('/api/devices');
+      const devices = await deviceRes.json();
+      const currentDevice = devices.find((d: Device) => d.hardware_id === hardwareId);
+      setDevice(currentDevice);
+
+      // Fetch geofences
+      const geofencesRes = await fetch(`/api/geofences/${hardwareId}`);
+      if (geofencesRes.ok) {
+        const data = await geofencesRes.json();
+        // Ensure data is an array
+        setGeofences(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to fetch geofences:', geofencesRes.statusText);
+        setGeofences([]);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setGeofences([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveGeofence = async (geofence: { name: string; latitude: number; longitude: number; radius: number }) => {
+    try {
+      const res = await fetch(`/api/geofences/${hardwareId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geofence),
+      });
+
+      if (!res.ok) throw new Error('Failed to save geofence');
+
+      // Refresh list
+      await fetchData();
+      alert('Zona segura criada com sucesso!');
+    } catch (error) {
+      console.error('Error saving geofence:', error);
+      alert('Erro ao salvar zona segura');
+    }
+  };
+
+  const handleDeleteGeofence = async (geofenceId: number) => {
+    try {
+      const res = await fetch(`/api/geofences/${hardwareId}?id=${geofenceId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Failed to delete geofence');
+
+      // Refresh list
+      await fetchData();
+      alert('Zona segura excluída com sucesso!');
+    } catch (error) {
+      console.error('Error deleting geofence:', error);
+      alert('Erro ao excluir zona segura');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-lg">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="mb-6">
-        <Link
-          href={`/devices/${hardwareId}`}
-          className="text-sm text-blue-600 hover:text-blue-700 mb-2 inline-block"
-        >
-          ← Voltar para Dispositivo
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
         </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Geofences</h1>
-            <p className="text-gray-600 mt-1">
-              Gerencie áreas seguras para este dispositivo
-            </p>
-          </div>
-          <Button>+ Nova Geofence</Button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Zonas Seguras - {device?.name || hardwareId}
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Gerencie áreas seguras para este dispositivo
+          </p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Áreas Seguras Configuradas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📍</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Nenhuma geofence configurada
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Crie áreas seguras para receber alertas quando o paciente sair delas
-            </p>
-            <Button>+ Criar Primeira Geofence</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <GoogleGeofenceEditor
+        hardwareId={hardwareId}
+        existingGeofences={geofences}
+        onSave={handleSaveGeofence}
+        onDelete={handleDeleteGeofence}
+      />
 
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-blue-900 mb-2">
-          💡 Como funcionam as Geofences
+          Como funcionam as Geofences
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li>• Defina áreas circulares no mapa onde o paciente deve permanecer</li>

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapWrapper } from '@/components/map/MapWrapper';
+import { GoogleDevicesMapView } from '@/components/map/GoogleDevicesMapView';
 import { createClient } from '@/lib/supabase/server';
 import { ensureUserExists } from '@/lib/services/user-sync';
 
@@ -22,6 +22,7 @@ async function getDevicesWithLocations() {
 
     const supabase = await createClient({ useServiceRole: true });
 
+    // Buscar dispositivos com localizações
     const { data: devices, error } = await supabase
       .from('devices')
       .select(`
@@ -42,7 +43,7 @@ async function getDevicesWithLocations() {
     }
 
     // Filtrar apenas dispositivos com localização
-    return devices
+    const devicesWithLocations = devices
       .filter((device: any) => device.locations && device.locations.length > 0)
       .map((device: any) => ({
         latitude: device.locations[0].latitude,
@@ -52,6 +53,30 @@ async function getDevicesWithLocations() {
         timestamp: device.locations[0].timestamp,
         batteryLevel: device.locations[0].battery_level,
       }));
+
+    // Se não houver localizações, tentar buscar a primeira geofence como fallback
+    if (devicesWithLocations.length === 0) {
+      const { data: geofences } = await supabase
+        .from('geofences')
+        .select('*')
+        .eq('user_id', userIdSupabase)
+        .limit(1)
+        .single();
+
+      if (geofences) {
+        // Usar o centro da geofence como localização padrão
+        return [{
+          latitude: geofences.center_lat,
+          longitude: geofences.center_lng,
+          deviceName: 'Zona Segura',
+          patientName: geofences.name,
+          timestamp: new Date().toISOString(),
+          batteryLevel: null,
+        }];
+      }
+    }
+
+    return devicesWithLocations;
   } catch (error) {
     console.error('Error fetching devices:', error);
     return [];
@@ -94,7 +119,7 @@ export default async function MapPage() {
               </div>
             </div>
           ) : (
-            <MapWrapper locations={locations} height="600px" />
+            <GoogleDevicesMapView locations={locations} height="600px" />
           )}
         </CardContent>
       </Card>
