@@ -51,7 +51,7 @@ export function LocationMap({ locations }: LocationMapProps) {
     <div className="h-[500px] rounded-lg overflow-hidden border shadow-lg">
       <MapWrapper
         center={mapCenter}
-        zoom={13}
+        zoom={18}
         className="h-full w-full"
         style={{ height: '100%', width: '100%' }}
       >

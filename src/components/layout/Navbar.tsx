@@ -4,7 +4,7 @@ import { UserButton } from '@clerk/nextjs';
 
 export function Navbar() {
   return (
-    <nav className="border-b border-emerald-100/50 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+    <nav className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="flex h-20 items-center px-6 container mx-auto">
         <Link href="/dashboard" className="flex items-center">
           <Image
@@ -12,7 +12,7 @@ export function Navbar() {
             alt="Alzheimer Care"
             width={180}
             height={40}
-            className="h-10 w-auto"
+            className="h-10 w-auto dark:invert"
             priority
           />
         </Link>
@@ -20,13 +20,13 @@ export function Navbar() {
         <div className="ml-auto flex items-center gap-6">
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors"
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
           >
             Dispositivos
           </Link>
           <Link
             href="/map"
-            className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors"
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
           >
             Mapa
           </Link>

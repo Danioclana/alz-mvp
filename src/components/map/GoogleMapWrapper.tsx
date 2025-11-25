@@ -17,7 +17,7 @@ interface GoogleMapWrapperProps {
 
 export function GoogleMapWrapper({
   center,
-  zoom = 13,
+  zoom = 18,
   className,
   style,
   onMapLoad,

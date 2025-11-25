@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { AlertConfig, Device } from '@/types';
 import { AlertConfigForm } from '@/components/alerts/AlertConfigForm';
 import { ArrowLeft } from 'lucide-react';
@@ -13,7 +12,6 @@ export default function AlertsPage({
 }: {
   params: Promise<{ hardwareId: string }>;
 }) {
-  const router = useRouter();
   const [hardwareId, setHardwareId] = useState<string>('');
   const [config, setConfig] = useState<AlertConfig | null>(null);
   const [device, setDevice] = useState<Device | null>(null);
@@ -23,13 +21,7 @@ export default function AlertsPage({
     params.then(p => setHardwareId(p.hardwareId));
   }, [params]);
 
-  useEffect(() => {
-    if (hardwareId) {
-      fetchData();
-    }
-  }, [hardwareId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Fetch device
       const deviceRes = await fetch('/api/devices');
@@ -52,7 +44,13 @@ export default function AlertsPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [hardwareId]);
+
+  useEffect(() => {
+    if (hardwareId) {
+      fetchData();
+    }
+  }, [hardwareId, fetchData]);
 
   const handleSave = async (newConfig: AlertConfig) => {
     const res = await fetch(`/api/alerts/${hardwareId}/config`, {
@@ -88,10 +86,10 @@ export default function AlertsPage({
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             Alertas - {device?.name || hardwareId}
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-1">
             Configure como e quando você deseja receber notificações
           </p>
         </div>
@@ -105,11 +103,11 @@ export default function AlertsPage({
         />
       )}
 
-      <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+      <div className="mt-6 bg-warning/10 border border-warning/20 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-2">
           Importante
         </h3>
-        <ul className="space-y-2 text-sm text-yellow-800">
+        <ul className="space-y-2 text-sm text-muted-foreground">
           <li>• Configure pelo menos um email para receber alertas</li>
           <li>• Os alertas só são enviados quando há geofences configuradas</li>
           <li>• Verifique sua caixa de spam se não estiver recebendo os emails</li>

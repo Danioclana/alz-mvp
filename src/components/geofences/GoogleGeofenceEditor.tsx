@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Geofence, Location } from '@/types';
+import { Geofence } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -29,10 +29,8 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
   });
   const [isSaving, setIsSaving] = useState(false);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [locations, setLocations] = useState<Location[]>([]);
 
-  // Native Google Maps objects for all markers and circles
-  const locationMarkersRef = useRef<google.maps.Marker[]>([]);
+  // Native Google Maps objects for geofence markers and circles
   const geofenceMarkersRef = useRef<google.maps.Marker[]>([]);
   const geofenceCirclesRef = useRef<google.maps.Circle[]>([]);
   const previewMarkerRef = useRef<google.maps.Marker | null>(null);
@@ -49,89 +47,10 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
     if (safeGeofences.length > 0) {
       return { lat: safeGeofences[0].latitude, lng: safeGeofences[0].longitude };
     }
-    if (locations.length > 0) {
-      return { lat: locations[0].latitude, lng: locations[0].longitude };
-    }
     return { lat: -23.550520, lng: -46.633308 };
   };
 
   const mapCenter = getMapCenter();
-
-  // Fetch device locations
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const res = await fetch(`/api/devices/${hardwareId}/locations?limit=10`);
-        if (res.ok) {
-          const data = await res.json();
-          setLocations(data);
-        }
-      } catch (error) {
-        console.error('Error fetching locations:', error);
-      }
-    };
-
-    if (hardwareId) {
-      fetchLocations();
-    }
-  }, [hardwareId]);
-
-  // Render location markers
-  useEffect(() => {
-    if (!map || locations.length === 0) return;
-
-    // Clear existing location markers
-    locationMarkersRef.current.forEach(marker => marker.setMap(null));
-    locationMarkersRef.current = [];
-
-    // Create new location markers
-    const newMarkers = locations.map((location, index) => {
-      const isLatest = index === 0;
-
-      const marker = new google.maps.Marker({
-        map: map,
-        position: { lat: location.latitude, lng: location.longitude },
-        title: `Localização ${isLatest ? '(Mais recente)' : new Date(location.timestamp).toLocaleString('pt-BR')}`,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: isLatest ? 8 : 5,
-          fillColor: isLatest ? '#ef4444' : '#f97316',
-          fillOpacity: isLatest ? 1 : 0.6,
-          strokeColor: '#ffffff',
-          strokeWeight: 2,
-        },
-        zIndex: isLatest ? 1000 : 100,
-      });
-
-      const infoWindow = new google.maps.InfoWindow({
-        content: `<div style="padding: 8px;">
-          <p style="font-weight: bold; margin-bottom: 4px;">
-            ${isLatest ? 'Última localização' : 'Localização anterior'}
-          </p>
-          <p style="font-size: 12px; color: #666;">
-            ${new Date(location.timestamp).toLocaleString('pt-BR')}
-          </p>
-          ${location.battery_level ? `
-            <p style="font-size: 12px; color: #666;">
-              Bateria: ${location.battery_level}%
-            </p>
-          ` : ''}
-        </div>`,
-      });
-
-      marker.addListener('click', () => {
-        infoWindow.open(map, marker);
-      });
-
-      return marker;
-    });
-
-    locationMarkersRef.current = newMarkers;
-
-    return () => {
-      newMarkers.forEach(marker => marker.setMap(null));
-    };
-  }, [map, locations]);
 
   // Render existing geofences
   useEffect(() => {
@@ -449,7 +368,7 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
         <div className="h-[600px] rounded-lg overflow-hidden border shadow-lg">
           <NativeGoogleMap
             center={mapCenter}
-            zoom={13}
+            zoom={18}
             className="h-full w-full"
             style={{ height: '100%', width: '100%' }}
             onMapLoad={setMap}
@@ -457,18 +376,9 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
           />
         </div>
 
-        {/* Map Legend */}
         <div className="bg-white border rounded-lg p-4 shadow-sm">
           <h4 className="text-sm font-semibold mb-3 text-gray-700">Legenda do Mapa</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white"></div>
-              <span className="text-gray-600">Última localização conhecida</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-500 border-2 border-white opacity-60"></div>
-              <span className="text-gray-600">Localizações anteriores</span>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white"></div>
               <span className="text-gray-600">Zonas seguras cadastradas</span>

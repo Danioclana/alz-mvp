@@ -14,7 +14,7 @@ interface NativeGoogleMapProps {
 
 export function NativeGoogleMap({
   center,
-  zoom = 13,
+  zoom = 18,
   className,
   style,
   onMapLoad,

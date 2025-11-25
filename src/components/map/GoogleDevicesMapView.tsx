@@ -23,9 +23,9 @@ export function GoogleDevicesMapView({ locations, height = '600px' }: GoogleDevi
 
   const center = locations.length > 0
     ? {
-        lat: locations.reduce((sum, loc) => sum + loc.latitude, 0) / locations.length,
-        lng: locations.reduce((sum, loc) => sum + loc.longitude, 0) / locations.length
-      }
+      lat: locations.reduce((sum, loc) => sum + loc.latitude, 0) / locations.length,
+      lng: locations.reduce((sum, loc) => sum + loc.longitude, 0) / locations.length
+    }
     : { lat: -23.550520, lng: -46.633308 };
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function GoogleDevicesMapView({ locations, height = '600px' }: GoogleDevi
     // Sempre centralizar no último local conhecido (primeiro da lista) com zoom próximo
     if (locations.length > 0) {
       map.setCenter({ lat: locations[0].latitude, lng: locations[0].longitude });
-      map.setZoom(17);
+      map.setZoom(18);
     }
 
     return () => {
@@ -91,7 +91,7 @@ export function GoogleDevicesMapView({ locations, height = '600px' }: GoogleDevi
     <div style={{ height }}>
       <GoogleMapWrapper
         center={center}
-        zoom={17}
+        zoom={18}
         style={{ height: '100%', width: '100%' }}
         onMapLoad={setMap}
       />

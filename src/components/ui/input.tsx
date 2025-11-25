@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -8,22 +9,26 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, className = '', ...props }, ref) => {
     return (
-      <div className="w-full">
+      <div className="w-full space-y-2">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="text-sm font-medium text-foreground/80 ml-1">
             {label}
-            {props.required && <span className="text-red-500 ml-1">*</span>}
+            {props.required && <span className="text-error ml-1">*</span>}
           </label>
         )}
-        <input
-          ref={ref}
-          className={`w-full px-4 py-3 border border-emerald-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
-            error ? 'border-red-300 focus:ring-red-500' : ''
-          } ${className}`}
-          {...props}
-        />
+        <div className="relative group">
+          <input
+            ref={ref}
+            className={cn(
+              "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+              error && "border-destructive focus-visible:ring-destructive",
+              className
+            )}
+            {...props}
+          />
+        </div>
         {error && (
-          <p className="mt-2 text-sm text-red-600">{error}</p>
+          <p className="text-sm text-destructive ml-1 animate-accordion-down">{error}</p>
         )}
       </div>
     );

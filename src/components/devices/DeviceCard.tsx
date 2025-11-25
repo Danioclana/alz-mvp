@@ -19,14 +19,14 @@ export function DeviceCard({ device }: DeviceCardProps) {
 
   return (
     <Link href={`/devices/${device.hardware_id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer">
+      <Card className="hover:shadow-lg transition-all cursor-pointer border-border/50 bg-card/50 backdrop-blur-sm" hoverEffect>
         <CardContent className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 {device.name}
               </h3>
-              <p className="text-sm text-gray-600">{device.patient_name}</p>
+              <p className="text-sm text-muted-foreground">{device.patient_name}</p>
             </div>
             <div className="flex flex-col items-end gap-2">
               {isStale && (
@@ -40,18 +40,17 @@ export function DeviceCard({ device }: DeviceCardProps) {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Bateria:</span>
-              <span className={`font-medium ${
-                isCriticalBattery ? 'text-red-600' : isLowBattery ? 'text-yellow-600' : 'text-gray-900'
-              }`}>
+              <span className="text-muted-foreground">Bateria:</span>
+              <span className={`font-medium ${isCriticalBattery ? 'text-destructive' : isLowBattery ? 'text-warning' : 'text-foreground'
+                }`}>
                 {formatBatteryLevel(batteryLevel)}
               </span>
             </div>
 
             {device.last_location_at && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Última atualização:</span>
-                <span className="text-gray-900">
+                <span className="text-muted-foreground">Última atualização:</span>
+                <span className="text-foreground">
                   {formatRelativeTime(device.last_location_at)}
                 </span>
               </div>
@@ -59,16 +58,16 @@ export function DeviceCard({ device }: DeviceCardProps) {
 
             {device.lastLocation && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Localização:</span>
-                <span className="text-gray-900 font-mono text-xs">
+                <span className="text-muted-foreground">Localização:</span>
+                <span className="text-foreground font-mono text-xs">
                   {device.lastLocation.latitude.toFixed(6)}, {device.lastLocation.longitude.toFixed(6)}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500">
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground">
               ID: {device.hardware_id}
             </p>
           </div>
