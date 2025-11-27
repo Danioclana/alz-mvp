@@ -1,5 +1,6 @@
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 
 export default function DashboardLayout({
   children,
@@ -19,6 +20,9 @@ export default function DashboardLayout({
         {children}
       </main>
       <Footer />
+
+      {/* Assistente Virtual */}
+      <ChatWidget />
     </div>
   );
 }

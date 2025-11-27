@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ensureUserExists } from '@/lib/services/user-sync';
 import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AutoReloadMap } from '@/components/map/AutoReloadMap';
 
 async function getDevicesWithLocations() {
   const { userId } = await auth();
@@ -24,37 +25,54 @@ async function getDevicesWithLocations() {
 
     const supabase = await createClient({ useServiceRole: true });
 
-    // Buscar dispositivos com localizações
-    const { data: devices, error } = await supabase
+    // Primeiro, buscar todos os dispositivos do usuário
+    const { data: devices, error: devicesError } = await supabase
       .from('devices')
-      .select(`
-        *,
-        locations (
-          latitude,
-          longitude,
-          timestamp,
-          battery_level
-        )
-      `)
-      .eq('user_id', userIdSupabase)
-      .order('created_at', { ascending: false });
+      .select('id, name, patient_name, hardware_id')
+      .eq('user_id', userIdSupabase);
 
-    if (error) {
-      console.error('Error fetching devices:', error);
+    if (devicesError || !devices || devices.length === 0) {
+      console.error('Error fetching devices:', devicesError);
       return [];
     }
 
-    // Filtrar apenas dispositivos com localização
-    const devicesWithLocations = devices
-      .filter((device: any) => device.locations && device.locations.length > 0)
-      .map((device: any) => ({
-        latitude: device.locations[0].latitude,
-        longitude: device.locations[0].longitude,
-        deviceName: device.name,
-        patientName: device.patient_name,
-        timestamp: device.locations[0].timestamp,
-        batteryLevel: device.locations[0].battery_level,
-      }));
+    console.log(`Found ${devices.length} devices`);
+
+    // Para cada dispositivo, buscar as 2 últimas localizações
+    const devicesWithLocations: any[] = [];
+
+    for (const device of devices) {
+      const { data: locations, error: locationsError } = await supabase
+        .from('locations')
+        .select('latitude, longitude, timestamp, battery_level')
+        .eq('device_id', device.id)
+        .order('timestamp', { ascending: false })
+        .limit(2);
+
+      if (locationsError) {
+        console.error(`Error fetching locations for device ${device.id}:`, locationsError);
+        continue;
+      }
+
+      if (locations && locations.length > 0) {
+        console.log(`Device ${device.name}: found ${locations.length} locations`);
+
+        // Adicionar cada localização ao array
+        locations.forEach((location: any, index: number) => {
+          devicesWithLocations.push({
+            latitude: location.latitude,
+            longitude: location.longitude,
+            deviceName: device.name,
+            patientName: device.patient_name,
+            timestamp: location.timestamp,
+            batteryLevel: location.battery_level,
+            isLatest: index === 0, // Primeira é a mais recente
+          });
+        });
+      }
+    }
+
+    console.log(`Total locations to display: ${devicesWithLocations.length}`);
 
     // Se não houver localizações, tentar buscar a primeira geofence como fallback
     if (devicesWithLocations.length === 0) {
@@ -74,6 +92,7 @@ async function getDevicesWithLocations() {
           patientName: geofences.name,
           timestamp: new Date().toISOString(),
           batteryLevel: null,
+          isLatest: true,
         }];
       }
     }
@@ -90,6 +109,7 @@ export default async function MapPage() {
 
   return (
     <div>
+      <AutoReloadMap refreshInterval={30} />
       <div className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight text-foreground">Mapa de Localização</h1>
         <p className="text-muted-foreground mt-2">

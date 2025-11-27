@@ -146,7 +146,7 @@ export default async function DeviceDetailPage({
               <div className="h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-3">
                 <Map className="h-8 w-8 text-blue-500" />
               </div>
-              <h3 className="font-semibold text-lg text-foreground">Ver Mapas</h3>
+              <h3 className="font-semibold text-lg text-foreground">Localizar</h3>
             </CardContent>
           </Card>
         </Link>
