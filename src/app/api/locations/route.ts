@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse e validar body
     const body = await request.json();
+    console.log('📍 Received body:', JSON.stringify(body, null, 2));
     const validation = LocationSchema.safeParse(body);
 
     if (!validation.success) {
