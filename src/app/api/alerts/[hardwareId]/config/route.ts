@@ -107,6 +107,9 @@ export async function PUT(
     if (validation.data.recipientEmails !== undefined) {
       updateData.recipient_emails = validation.data.recipientEmails;
     }
+    if (validation.data.recipientPhones !== undefined) {
+      updateData.recipient_phones = validation.data.recipientPhones;
+    }
     if (validation.data.alertFrequencyMinutes !== undefined) {
       updateData.alert_frequency_minutes = validation.data.alertFrequencyMinutes;
     }

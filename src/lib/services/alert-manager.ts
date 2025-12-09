@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { sendGeofenceAlertEmail } from './email';
+import { sendGeofenceAlertWhatsApp } from './whatsapp';
 import type { AlertConfig, AlertStatus, Device } from '@/types';
 
 /**
@@ -33,8 +34,11 @@ export async function sendGeofenceAlert(
       return;
     }
 
-    // Se não há emails configurados, não fazer nada
-    if (!alertConfig.recipient_emails || alertConfig.recipient_emails.length === 0) {
+    // Se não há destinatários configurados, não fazer nada
+    const hasEmails = alertConfig.recipient_emails && alertConfig.recipient_emails.length > 0;
+    const hasPhones = alertConfig.recipient_phones && alertConfig.recipient_phones.length > 0;
+
+    if (!hasEmails && !hasPhones) {
       return;
     }
 
@@ -98,15 +102,29 @@ export async function sendGeofenceAlert(
     const pauseAlertLink = `${process.env.NEXT_PUBLIC_APP_URL}/alerts/pause?device=${device.hardware_id}`;
 
     // Enviar email
-    await sendGeofenceAlertEmail({
-      recipientEmails: alertConfig.recipient_emails,
-      deviceName: device.name,
-      patientName: device.patient_name,
-      latitude,
-      longitude,
-      timestamp: new Date().toISOString(),
-      pauseAlertLink,
-    });
+    if (hasEmails) {
+      await sendGeofenceAlertEmail({
+        recipientEmails: alertConfig.recipient_emails,
+        deviceName: device.name,
+        patientName: device.patient_name,
+        latitude,
+        longitude,
+        timestamp: new Date().toISOString(),
+        pauseAlertLink,
+      });
+    }
+
+    // Enviar WhatsApp
+    if (hasPhones) {
+      await sendGeofenceAlertWhatsApp({
+        recipientPhones: alertConfig.recipient_phones,
+        deviceName: device.name,
+        patientName: device.patient_name,
+        latitude,
+        longitude,
+        pauseAlertLink,
+      });
+    }
 
     // Atualizar último alerta enviado
     await supabase
@@ -122,7 +140,8 @@ export async function sendGeofenceAlert(
       alert_type: 'GEOFENCE_VIOLATION',
       latitude,
       longitude,
-      sent_to_emails: alertConfig.recipient_emails,
+      sent_to_emails: alertConfig.recipient_emails || [],
+      sent_to_phones: alertConfig.recipient_phones || [],
       sent_at: new Date().toISOString(),
     });
 

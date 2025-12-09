@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { isPointInsideCircle } from '@/lib/utils/distance';
+import { sendGeofenceAlert } from './alert-manager';
 import type { Geofence } from '@/types';
 
 /**
@@ -54,6 +55,11 @@ export async function checkGeofenceViolation(
       updated_at: new Date().toISOString(),
     })
     .eq('device_id', deviceId);
+
+  if (isOutside) {
+    // Tentar enviar alerta (o gerenciador cuida da frequência e configurações)
+    await sendGeofenceAlert(deviceId, latitude, longitude);
+  }
 
   return isOutside;
 }

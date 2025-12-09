@@ -36,6 +36,7 @@ export interface AlertConfig {
   device_id: number;
   alerts_enabled: boolean;
   recipient_emails: string[];
+  recipient_phones: string[];
   alert_frequency_minutes: number;
   created_at: string;
   updated_at: string;
@@ -59,6 +60,7 @@ export interface AlertHistory {
   latitude: number;
   longitude: number;
   sent_to_emails: string[];
+  sent_to_phones: string[];
   sent_at: string;
   acknowledged: boolean;
   acknowledged_at: string | null;
