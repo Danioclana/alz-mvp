@@ -11,14 +11,13 @@ export function Footer() {
           {/* Logo e Descrição */}
           <div className="col-span-1 md:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4 group">
-              <div className="relative h-8 w-8 overflow-hidden rounded-lg bg-gradient-to-br from-primary to-secondary p-0.5">
-                <div className="h-full w-full bg-background rounded-[6px] flex items-center justify-center">
-                  <Heart className="h-4 w-4 text-primary fill-primary/20" />
-                </div>
-              </div>
-              <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                Alzheimer Care
-              </span>
+              <Image
+                src="/logo-completa-texto-img.png"
+                alt="Alzheimer Care"
+                width={160}
+                height={35}
+                className="h-8 w-auto"
+              />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
               Sistema inteligente de monitoramento para pessoas com Alzheimer.

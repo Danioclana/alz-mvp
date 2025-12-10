@@ -466,6 +466,164 @@ async function geocodeAddress(address: string) {
 }
 
 /**
+ * Registra um novo dispositivo
+ */
+async function registerDevice(hardwareId: string, name: string, patientName: string, userId: string) {
+    const supabase = await createClient({ useServiceRole: true });
+
+    // Verificar se já existe
+    const { data: existing } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('hardware_id', hardwareId)
+        .single();
+
+    if (existing) {
+        return {
+            success: false,
+            error: 'Este dispositivo já está cadastrado.',
+        };
+    }
+
+    // Criar dispositivo
+    const { data: device, error } = await supabase
+        .from('devices')
+        .insert({
+            user_id: userId,
+            hardware_id: hardwareId,
+            name,
+            patient_name: patientName,
+        })
+        .select()
+        .single();
+
+    if (error) {
+        return {
+            success: false,
+            error: 'Erro ao cadastrar dispositivo.',
+        };
+    }
+
+    // Criar configuração de alerta padrão
+    await supabase.from('alert_configs').insert({
+        device_id: device.id,
+        alerts_enabled: true,
+        alert_frequency_minutes: 15,
+        recipient_emails: [],
+        recipient_phones: [],
+    });
+
+    // Criar status inicial
+    await supabase.from('alert_status').insert({
+        device_id: device.id,
+        is_outside_geofence: false,
+        accompanied_mode_enabled: false,
+    });
+
+    return {
+        success: true,
+        data: {
+            message: `Dispositivo "${name}" cadastrado com sucesso para o paciente ${patientName}!`,
+            device,
+        },
+    };
+}
+
+/**
+ * Atualiza configurações de alerta
+ */
+async function updateAlertConfig(
+    deviceId: string,
+    userId: string,
+    params: {
+        emails?: string[];
+        phones?: string[];
+        frequencyMinutes?: number;
+        enabled?: boolean;
+    }
+) {
+    const supabase = await createClient({ useServiceRole: true });
+
+    // Buscar device
+    const { data: device } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('hardware_id', deviceId)
+        .eq('user_id', userId)
+        .single();
+
+    if (!device) {
+        return {
+            success: false,
+            error: 'Dispositivo não encontrado.',
+        };
+    }
+
+    const updates: any = {};
+    if (params.emails) updates.recipient_emails = params.emails;
+    if (params.phones) updates.recipient_phones = params.phones;
+    if (params.frequencyMinutes) updates.alert_frequency_minutes = params.frequencyMinutes;
+    if (params.enabled !== undefined) updates.alerts_enabled = params.enabled;
+
+    const { error } = await supabase
+        .from('alert_configs')
+        .update(updates)
+        .eq('device_id', device.id);
+
+    if (error) {
+        return {
+            success: false,
+            error: 'Erro ao atualizar configurações de alerta.',
+        };
+    }
+
+    return {
+        success: true,
+        data: {
+            message: 'Configurações de alerta atualizadas com sucesso!',
+        },
+    };
+}
+
+/**
+ * Atualiza informações do paciente/dispositivo
+ */
+async function updatePatientInfo(
+    deviceId: string,
+    userId: string,
+    params: {
+        patientName?: string;
+        deviceName?: string;
+    }
+) {
+    const supabase = await createClient({ useServiceRole: true });
+
+    const updates: any = {};
+    if (params.patientName) updates.patient_name = params.patientName;
+    if (params.deviceName) updates.name = params.deviceName;
+
+    const { error } = await supabase
+        .from('devices')
+        .update(updates)
+        .eq('hardware_id', deviceId)
+        .eq('user_id', userId);
+
+    if (error) {
+        return {
+            success: false,
+            error: 'Erro ao atualizar informações.',
+        };
+    }
+
+    return {
+        success: true,
+        data: {
+            message: 'Informações atualizadas com sucesso!',
+        },
+    };
+}
+
+/**
  * Executor principal de funções
  */
 export async function executeFunction(
@@ -508,6 +666,23 @@ export async function executeFunction(
 
             case 'analyzeGeofenceSuggestions':
                 return await analyzeGeofenceSuggestions(args.deviceId, args.days, userId);
+
+            case 'registerDevice':
+                return await registerDevice(args.hardwareId, args.name, args.patientName, userId);
+
+            case 'updateAlertConfig':
+                return await updateAlertConfig(args.deviceId, userId, {
+                    emails: args.emails,
+                    phones: args.phones,
+                    frequencyMinutes: args.frequencyMinutes,
+                    enabled: args.enabled,
+                });
+
+            case 'updatePatientInfo':
+                return await updatePatientInfo(args.deviceId, userId, {
+                    patientName: args.patientName,
+                    deviceName: args.deviceName,
+                });
 
             default:
                 return {

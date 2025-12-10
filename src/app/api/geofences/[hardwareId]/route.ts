@@ -28,11 +28,23 @@ export async function GET(
     // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
     const supabase = await createClient({ useServiceRole: true });
 
+    // Buscar internal user ID
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_id', userId)
+      .single();
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Buscar device
     const { data: device, error: deviceError } = await supabase
       .from('devices')
       .select('id')
       .eq('hardware_id', hardwareId)
+      .eq('user_id', user.id) // Check ownership
       .single();
 
     console.log('[GET /api/geofences] Device lookup:', { device, deviceError });
@@ -94,11 +106,23 @@ export async function POST(
     // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
     const supabase = await createClient({ useServiceRole: true });
 
+    // Buscar internal user ID
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_id', userId)
+      .single();
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Buscar device
     const { data: device } = await supabase
       .from('devices')
       .select('id')
       .eq('hardware_id', hardwareId)
+      .eq('user_id', user.id)
       .single();
 
     if (!device) {
@@ -161,11 +185,23 @@ export async function DELETE(
     // Usar service role para bypassar RLS (já validamos autenticação via Clerk)
     const supabase = await createClient({ useServiceRole: true });
 
+    // Buscar internal user ID
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_id', userId)
+      .single();
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Buscar device
     const { data: device } = await supabase
       .from('devices')
       .select('id')
       .eq('hardware_id', hardwareId)
+      .eq('user_id', user.id)
       .single();
 
     if (!device) {

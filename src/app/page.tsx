@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { Footer } from "@/components/layout/Footer";
-import { MapPin, Bell, Shield, Battery, History, Bot, ChevronRight, Activity, Heart } from "lucide-react";
+import { MapPin, Bell, Shield, Battery, History, Bot, ChevronRight, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
@@ -44,14 +44,14 @@ export default function Home() {
       <header className="fixed top-0 w-full z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-20 items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-gradient-to-br from-primary to-secondary p-0.5">
-              <div className="h-full w-full bg-background rounded-[10px] flex items-center justify-center">
-                <Heart className="h-5 w-5 text-primary fill-primary/20" />
-              </div>
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-              Alzheimer Care
-            </span>
+            <Image
+              src="/logo-completa-texto-img.png"
+              alt="Alzheimer Care"
+              width={180}
+              height={40}
+              className="h-10 w-auto"
+              priority
+            />
           </Link>
           <nav className="flex items-center gap-4">
             <SignedOut>

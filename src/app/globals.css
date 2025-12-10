@@ -2,8 +2,6 @@
 
 @plugin "tailwindcss-animate";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
   /* Base Colors - Slate/Zinc inspired for a clean, modern look */
   --background: 210 40% 98%;
@@ -73,53 +71,6 @@
   --radius: 0.75rem;
 }
 
-.dark {
-  /* Dark Mode - Deep Blue/Slate background */
-  --background: 222 47% 11%;
-  /* #0f172a */
-  --foreground: 210 40% 98%;
-  /* #f8fafc */
-
-  --primary: 210 40% 98%;
-  /* #f8fafc */
-  --primary-foreground: 222 47% 11%;
-  /* #0f172a */
-
-  --secondary: 173 80% 40%;
-  /* #14b8a6 */
-  --secondary-foreground: 222 47% 11%;
-  /* #0f172a */
-
-  --accent: 239 84% 67%;
-  /* #6366f1 */
-  --accent-foreground: 222 47% 11%;
-  /* #0f172a */
-
-  --card: 222 47% 11%;
-  /* #0f172a */
-  --card-foreground: 210 40% 98%;
-  /* #f8fafc */
-
-  --popover: 222 47% 11%;
-  /* #0f172a */
-  --popover-foreground: 210 40% 98%;
-  /* #f8fafc */
-
-  --muted: 217.2 32.6% 17.5%;
-  /* #1e293b */
-  --muted-foreground: 215 20.2% 65.1%;
-  /* #94a3b8 */
-
-  --border: 217.2 32.6% 17.5%;
-  /* #1e293b */
-  --input: 217.2 32.6% 17.5%;
-  /* #1e293b */
-  --ring: 212.7 26.8% 83.9%;
-  /* #e2e8f0 */
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-}
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -197,13 +148,8 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.dark .glass {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Glass Card - Now uses theme variables more effectively where possible, 
-   but keeps the transparency for the effect. 
+/* Glass Card - Now uses theme variables more effectively where possible,
+   but keeps the transparency for the effect.
    IMPORTANT: Use bg-card for solid cards, glass-card only when transparency is explicitly desired. */
 .glass-card {
   background: rgba(255, 255, 255, 0.8);
@@ -211,10 +157,4 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-}
-
-.dark .glass-card {
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }

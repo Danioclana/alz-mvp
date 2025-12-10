@@ -54,6 +54,9 @@ Você pode executar as seguintes ações no sistema:
 - listDevices: Listar todos os dispositivos do usuário
 - geocodeAddress: Converter endereço em coordenadas
 - analyzeGeofenceSuggestions: Analisar histórico e sugerir melhorias nas zonas seguras
+- registerDevice: Cadastrar novo dispositivo
+- updateAlertConfig: Configurar alertas (emails, telefones, frequência)
+- updatePatientInfo: Atualizar nome do paciente ou dispositivo
 
 IMPORTANTE SOBRE FUNÇÕES:
 - Quando o usuário perguntar "onde está", use getCurrentLocation

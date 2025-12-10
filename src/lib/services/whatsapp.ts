@@ -25,16 +25,30 @@ export async function sendWhatsAppMessage({
         const encodedMessage = encodeURIComponent(message);
         const url = `https://api.callmebot.com/whatsapp.php?phone=${formattedPhone}&text=${encodedMessage}&apikey=${apiKey}`;
 
+        console.log(`🔍 [WhatsApp] Sending to: +${formattedPhone}`);
+
         const response = await axios.get(url);
+
+        console.log(`📡 [WhatsApp] Response status: ${response.status}, data:`, response.data);
 
         if (response.status !== 200) {
             throw new Error(`Failed to send WhatsApp message: ${response.statusText}`);
         }
 
+        console.log(`✅ WhatsApp sent to +${formattedPhone}`);
         return response.data;
     } catch (error) {
-        console.error('Error sending WhatsApp message:', error);
-        // Don't throw, just log, so we don't break the whole alert flow if WA fails
+        if (axios.isAxiosError(error)) {
+            console.error(`❌ Error sending WhatsApp to +${formattedPhone}:`, {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                message: error.message
+            });
+        } else {
+            console.error(`❌ Error sending WhatsApp to +${formattedPhone}:`, error);
+        }
+        throw error; // Re-lançar o erro para que o alert-manager saiba que falhou
     }
 }
 

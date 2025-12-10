@@ -102,7 +102,7 @@ export default function GeofencesPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/">
+        <Link href={`/devices/${hardwareId}`}>
           <Button variant="ghost">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar

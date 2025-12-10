@@ -14,6 +14,7 @@ export interface FunctionDefinition {
             type: string;
             description: string;
             enum?: string[];
+            items?: { type: string };
         }>;
         required: string[];
     };
@@ -167,6 +168,82 @@ export const AVAILABLE_FUNCTIONS: FunctionDefinition[] = [
                 days: {
                     type: 'number',
                     description: 'Número de dias de histórico para analisar (padrão: 7)',
+                },
+            },
+            required: ['deviceId'],
+        },
+    },
+    {
+        name: 'registerDevice',
+        description: 'Registra um novo dispositivo para o usuário. Use quando o usuário pedir para "cadastrar dispositivo", "adicionar rastreador" ou similar.',
+        parameters: {
+            type: 'object',
+            properties: {
+                hardwareId: {
+                    type: 'string',
+                    description: 'ID de hardware do dispositivo (geralmente impresso no aparelho)',
+                },
+                name: {
+                    type: 'string',
+                    description: 'Nome para identificar o dispositivo (ex: "Relógio do Vovô")',
+                },
+                patientName: {
+                    type: 'string',
+                    description: 'Nome do paciente que usará o dispositivo',
+                },
+            },
+            required: ['hardwareId', 'name', 'patientName'],
+        },
+    },
+    {
+        name: 'updateAlertConfig',
+        description: 'Atualiza as configurações de alerta de um dispositivo, incluindo emails e telefones. Use quando o usuário pedir para "cadastrar email", "adicionar telefone", "mudar frequência de alertas".',
+        parameters: {
+            type: 'object',
+            properties: {
+                deviceId: {
+                    type: 'string',
+                    description: 'ID do dispositivo (hardware_id)',
+                },
+                emails: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Lista de emails para receber alertas',
+                },
+                phones: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Lista de telefones (WhatsApp) para receber alertas (com DDD)',
+                },
+                frequencyMinutes: {
+                    type: 'number',
+                    description: 'Frequência mínima entre alertas em minutos',
+                },
+                enabled: {
+                    type: 'boolean',
+                    description: 'Se os alertas devem estar ativados ou não',
+                },
+            },
+            required: ['deviceId'],
+        },
+    },
+    {
+        name: 'updatePatientInfo',
+        description: 'Atualiza as informações do paciente associado a um dispositivo.',
+        parameters: {
+            type: 'object',
+            properties: {
+                deviceId: {
+                    type: 'string',
+                    description: 'ID do dispositivo (hardware_id)',
+                },
+                patientName: {
+                    type: 'string',
+                    description: 'Novo nome do paciente',
+                },
+                deviceName: {
+                    type: 'string',
+                    description: 'Novo nome do dispositivo',
                 },
             },
             required: ['deviceId'],
