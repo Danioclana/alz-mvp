@@ -60,9 +60,26 @@ Você pode executar as seguintes ações no sistema:
 
 IMPORTANTE SOBRE FUNÇÕES:
 - Quando o usuário perguntar "onde está", use getCurrentLocation
-- Quando pedir para criar zona segura, primeiro use geocodeAddress se ele der um endereço, depois createGeofence
-- Sempre confirme com o usuário antes de criar uma zona
+- Quando pedir para criar zona segura com endereço:
+  1. Use geocodeAddress para obter coordenadas
+  2. IMEDIATAMENTE use createGeofence com as coordenadas obtidas
+  3. NÃO peça confirmação - execute diretamente
+- Se o usuário der coordenadas diretas (lat/lng), use createGeofence direto
 - Se o usuário tiver múltiplos dispositivos, use listDevices primeiro para escolher qual usar
+- SEMPRE execute createGeofence após geocodeAddress quando o usuário pedir para criar uma zona
+
+EXEMPLO DE FLUXO CORRETO:
+Usuário: "Crie uma zona segura na Rua X, 123 com raio de 100 metros no dispositivo teste"
+Você DEVE:
+1. Chamar geocodeAddress({ address: "Rua X, 123" })
+2. Receber resultado com latitude e longitude
+3. IMEDIATAMENTE chamar createGeofence({ deviceId: "teste", name: "Casa", latitude: -23.5, longitude: -46.6, radius: 100 })
+4. Só ENTÃO responder ao usuário: "Zona segura criada com sucesso!"
+
+NÃO faça:
+- Chamar apenas geocodeAddress e responder "Encontrei o endereço em lat/lng"
+- Pedir confirmação do usuário antes de criar
+- Explicar o que vai fazer sem executar
 
 Quando o usuário pedir ajuda para criar uma zona segura, explique o processo passo a passo.
 Quando perguntar sobre alertas, explique como funcionam e como configurar.
@@ -165,18 +182,29 @@ export async function processChat(
     });
 
     // Enviar mensagem
+    console.log('[processChat] Sending message:', currentMessage.content);
     let result = await chat.sendMessage(currentMessage.content);
     let response = result.response;
 
-    // Verificar se há function calls
-    const functionCalls = response.functionCalls();
+    // Loop para permitir múltiplas rodadas de function calling
+    let maxRounds = 5; // Limitar a 5 rodadas para evitar loops infinitos
+    let round = 0;
 
-    if (functionCalls && functionCalls.length > 0) {
-      // Executar todas as funções chamadas
+    while (round < maxRounds) {
+      const functionCalls = response.functionCalls();
+      console.log(`[processChat] Round ${round + 1} - Function calls:`, functionCalls?.length || 0);
+
+      if (!functionCalls || functionCalls.length === 0) {
+        // Sem mais function calls, retornar resposta
+        break;
+      }
+
+      // Executar todas as funções chamadas nesta rodada
       const functionResponses = await Promise.all(
         functionCalls.map(async (call) => {
-          console.log(`Executing function: ${call.name}`, call.args);
+          console.log(`[processChat] Executing function: ${call.name}`, call.args);
           const result = await executeFunction(call.name, call.args, userId);
+          console.log(`[processChat] Function ${call.name} result:`, result);
           return {
             functionResponse: {
               name: call.name,
@@ -186,9 +214,17 @@ export async function processChat(
         })
       );
 
+      console.log('[processChat] Sending function responses back to AI');
       // Enviar resultados de volta para o Gemini
       result = await chat.sendMessage(functionResponses);
       response = result.response;
+      console.log('[processChat] AI response received');
+
+      round++;
+    }
+
+    if (round >= maxRounds) {
+      console.warn('[processChat] Max function calling rounds reached');
     }
 
     return response.text();

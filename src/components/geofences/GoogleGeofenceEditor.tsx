@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Geofence } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,11 +36,17 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
   const previewMarkerRef = useRef<google.maps.Marker | null>(null);
   const previewCircleRef = useRef<google.maps.Circle | null>(null);
   const previewInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const isCreatingRef = useRef(isCreating);
 
   const safeGeofences = Array.isArray(existingGeofences) ? existingGeofences : [];
 
-  // Determinar centro do mapa
-  const getMapCenter = () => {
+  // Manter o ref atualizado
+  useEffect(() => {
+    isCreatingRef.current = isCreating;
+  }, [isCreating]);
+
+  // Determinar centro do mapa (memoizado para evitar re-renders)
+  const mapCenter = useMemo(() => {
     if (isCreating && newGeofence.latitude && newGeofence.longitude) {
       return { lat: newGeofence.latitude, lng: newGeofence.longitude };
     }
@@ -48,9 +54,7 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
       return { lat: safeGeofences[0].latitude, lng: safeGeofences[0].longitude };
     }
     return { lat: -23.550520, lng: -46.633308 };
-  };
-
-  const mapCenter = getMapCenter();
+  }, [isCreating, newGeofence.latitude, newGeofence.longitude, safeGeofences]);
 
   // Render existing geofences
   useEffect(() => {
@@ -239,7 +243,7 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
   }, [map, isCreating, newGeofence.latitude, newGeofence.longitude, newGeofence.radius, newGeofence.name]);
 
   const handleMapClick = useCallback((event: google.maps.MapMouseEvent) => {
-    if (isCreating && event.latLng) {
+    if (isCreatingRef.current && event.latLng) {
       const lat = event.latLng.lat();
       const lng = event.latLng.lng();
       setNewGeofence(prev => ({
@@ -248,7 +252,7 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
         longitude: lng,
       }));
     }
-  }, [isCreating]);
+  }, []);
 
   const handlePlaceSelect = useCallback((place: { lat: number; lng: number; address: string }) => {
     setNewGeofence(prev => ({
@@ -308,16 +312,20 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
               </div>
             </div>
 
-            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded border border-blue-200 space-y-1">
+            <div className="text-sm bg-blue-50 p-3 rounded border border-blue-200 space-y-1">
               {newGeofence.latitude ? (
                 <>
-                  <p className="font-semibold text-blue-700">✓ Localização definida</p>
-                  <p className="text-xs">Lat: {newGeofence.latitude.toFixed(6)}</p>
-                  <p className="text-xs">Lng: {newGeofence.longitude?.toFixed(6)}</p>
-                  <p className="text-xs mt-2 text-blue-600">💡 Arraste o marcador azul para ajustar a posição</p>
+                  <p className="font-semibold text-green-700 flex items-center gap-1">
+                    <span className="text-green-600">✓</span> Localização definida
+                  </p>
+                  <p className="text-xs text-gray-700">Lat: {newGeofence.latitude.toFixed(6)}</p>
+                  <p className="text-xs text-gray-700">Lng: {newGeofence.longitude?.toFixed(6)}</p>
+                  <div className="mt-2 pt-2 border-t border-blue-200">
+                    <p className="text-xs text-blue-700 font-medium">Dica: Arraste o marcador azul para ajustar a posição</p>
+                  </div>
                 </>
               ) : (
-                <p>Clique no mapa para definir a localização</p>
+                <p className="text-gray-700 font-medium">Clique no mapa para definir a localização</p>
               )}
             </div>
 

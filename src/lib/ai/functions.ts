@@ -68,7 +68,7 @@ export const AVAILABLE_FUNCTIONS: FunctionDefinition[] = [
     },
     {
         name: 'createGeofence',
-        description: 'Cria uma nova zona segura (geofence) para um dispositivo. Use quando o usuário pedir para criar uma área segura.',
+        description: 'Cria uma nova zona segura (geofence) para um dispositivo. Use IMEDIATAMENTE quando o usuário pedir para criar uma área segura. Se ele der um endereço, use geocodeAddress primeiro e depois SEMPRE chame esta função com as coordenadas obtidas. NÃO peça confirmação - crie automaticamente.',
         parameters: {
             type: 'object',
             properties: {
@@ -90,7 +90,7 @@ export const AVAILABLE_FUNCTIONS: FunctionDefinition[] = [
                 },
                 radius: {
                     type: 'number',
-                    description: 'Raio da zona em metros (mínimo 50, máximo 1000, padrão 200)',
+                    description: 'Raio da zona em metros (mínimo 10, máximo 5000, padrão 100)',
                 },
             },
             required: ['deviceId', 'name', 'latitude', 'longitude', 'radius'],
@@ -143,7 +143,7 @@ export const AVAILABLE_FUNCTIONS: FunctionDefinition[] = [
     },
     {
         name: 'geocodeAddress',
-        description: 'Converte um endereço em coordenadas geográficas (latitude e longitude). Use quando o usuário mencionar um endereço mas não coordenadas.',
+        description: 'Converte um endereço em coordenadas geográficas (latitude e longitude). Use quando o usuário mencionar um endereço mas não coordenadas. IMPORTANTE: Esta função é apenas para obter coordenadas - se o usuário pediu para criar uma zona segura, você DEVE chamar createGeofence logo após esta função.',
         parameters: {
             type: 'object',
             properties: {

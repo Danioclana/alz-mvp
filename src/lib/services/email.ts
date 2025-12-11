@@ -61,10 +61,10 @@ export async function sendGeofenceAlertEmail({
 
               <div style="text-align: center;">
                 <a href="${googleMapsLink}" class="button" target="_blank">
-                  📍 Ver no Google Maps
+                  Ver Localização no Mapa
                 </a>
                 <a href="${pauseAlertLink}" class="button button-secondary" target="_blank">
-                  ⏸️ Pausar Alertas (1h)
+                  Pausar Alertas por 1 hora
                 </a>
               </div>
 

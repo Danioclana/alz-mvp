@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
+import { useLoadScript } from '@react-google-maps/api';
+
+const libraries: ("places" | "drawing" | "geometry")[] = ['places', 'drawing', 'geometry'];
 
 interface NativeGoogleMapProps {
   center: { lat: number; lng: number };
@@ -12,7 +15,7 @@ interface NativeGoogleMapProps {
   children?: React.ReactNode;
 }
 
-export function NativeGoogleMap({
+export const NativeGoogleMap = memo(function NativeGoogleMap({
   center,
   zoom = 18,
   className,
@@ -23,19 +26,14 @@ export function NativeGoogleMap({
 }: NativeGoogleMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
-    // Wait for Google Maps API to load
-    const checkGoogleMaps = setInterval(() => {
-      if (typeof google !== 'undefined' && google.maps && google.maps.Map) {
-        clearInterval(checkGoogleMaps);
-        setIsLoaded(true);
-      }
-    }, 100);
+  // Load Google Maps API
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    libraries
+  });
 
-    return () => clearInterval(checkGoogleMaps);
-  }, []);
+  console.log('[NativeGoogleMap] Render', { center, zoom, hasMap: !!mapInstanceRef.current, isLoaded, loadError });
 
   useEffect(() => {
     if (!isLoaded || !mapRef.current || mapInstanceRef.current) return;
@@ -56,16 +54,22 @@ export function NativeGoogleMap({
 
     mapInstanceRef.current = map;
 
-    if (onClick) {
-      console.log('[NativeGoogleMap] Adding click listener');
-      map.addListener('click', onClick);
-    }
-
     if (onMapLoad) {
       console.log('[NativeGoogleMap] Calling onMapLoad callback');
       onMapLoad(map);
     }
-  }, [isLoaded, onClick, onMapLoad]);
+  }, [isLoaded]);
+
+  // Update click listener when onClick changes
+  useEffect(() => {
+    if (!mapInstanceRef.current || !onClick) return;
+
+    const listener = mapInstanceRef.current.addListener('click', onClick);
+
+    return () => {
+      google.maps.event.removeListener(listener);
+    };
+  }, [onClick]);
 
   // Update center when it changes
   useEffect(() => {
@@ -80,6 +84,19 @@ export function NativeGoogleMap({
       mapInstanceRef.current.setZoom(zoom);
     }
   }, [zoom]);
+
+  if (loadError) {
+    return (
+      <div className={className} style={style}>
+        <div className="flex items-center justify-center h-full bg-gray-100">
+          <div className="text-center text-red-600">
+            <p className="font-semibold">Erro ao carregar Google Maps</p>
+            <p className="text-sm mt-1">Verifique a configuração da API key</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoaded) {
     return (
@@ -100,4 +117,14 @@ export function NativeGoogleMap({
       {children}
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.center.lat === nextProps.center.lat &&
+    prevProps.center.lng === nextProps.center.lng &&
+    prevProps.zoom === nextProps.zoom &&
+    prevProps.className === nextProps.className &&
+    prevProps.onClick === nextProps.onClick &&
+    prevProps.onMapLoad === nextProps.onMapLoad
+  );
+});

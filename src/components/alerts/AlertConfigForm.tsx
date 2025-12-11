@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 
 interface AlertConfigFormProps {
   hardwareId: string;
@@ -32,6 +32,25 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConf
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [saving, setSaving] = useState(false);
+
+  /**
+   * Formata o número de telefone para exibição visual
+   * Ex: 5531989277806 -> +55 (31) 9892-77806
+   */
+  const formatPhoneDisplay = (phone: string): string => {
+    const digitsOnly = phone.replace(/\D/g, '');
+
+    // Formato brasileiro: +55 (31) 98927-7806
+    if (digitsOnly.startsWith('55') && digitsOnly.length >= 12) {
+      const countryCode = digitsOnly.slice(0, 2);
+      const areaCode = digitsOnly.slice(2, 4);
+      const firstPart = digitsOnly.slice(4, 8);
+      const secondPart = digitsOnly.slice(8, 13);
+      return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
+    }
+
+    return phone;
+  };
 
   useEffect(() => {
     if (initialConfig) {
@@ -220,10 +239,14 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConf
             <p className="text-sm text-gray-500 py-2">Nenhum email adicionado</p>
           ) : (
             config.recipient_emails.map((email) => (
-              <Badge key={email} variant="default" className="gap-2 px-3 py-1">
-                {email}
-                <button onClick={() => removeEmail(email)} className="hover:text-red-600">
-                  <X className="h-3 w-3" />
+              <Badge key={email} variant="default" className="gap-2 px-3 py-2 text-sm">
+                <span>{email}</span>
+                <button
+                  onClick={() => removeEmail(email)}
+                  className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                  aria-label="Remover email"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </Badge>
             ))
@@ -256,10 +279,14 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConf
             <p className="text-sm text-gray-500 py-2">Nenhum telefone adicionado</p>
           ) : (
             config.recipient_phones.map((phone) => (
-              <Badge key={phone} variant="default" className="gap-2 px-3 py-1">
-                {phone}
-                <button onClick={() => removePhone(phone)} className="hover:text-red-600">
-                  <X className="h-3 w-3" />
+              <Badge key={phone} variant="default" className="gap-2 px-3 py-2 text-sm font-mono">
+                <span>{formatPhoneDisplay(phone)}</span>
+                <button
+                  onClick={() => removePhone(phone)}
+                  className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                  aria-label="Remover telefone"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </Badge>
             ))

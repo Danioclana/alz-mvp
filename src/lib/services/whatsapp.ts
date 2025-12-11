@@ -122,14 +122,14 @@ export async function sendGeofenceAlertWhatsApp({
 }: SendGeofenceAlertWhatsAppParams) {
     const googleMapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
 
-    const message = `🚨 *ALERTA DE SEGURANÇA* 🚨
+    const message = `*[ALERTA DE SEGURANÇA]*
 
 O paciente *${patientName}* (Dispositivo: ${deviceName}) saiu da área segura!
 
-📍 *Localização Atual:*
+*Localização Atual:*
 ${googleMapsLink}
 
-⏸️ *Pausar Alertas:*
+*Pausar Alertas por 1 hora:*
 ${pauseAlertLink}
 
 _Mensagem automática do sistema de monitoramento._`;

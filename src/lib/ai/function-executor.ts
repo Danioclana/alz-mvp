@@ -2,13 +2,32 @@ import { createClient } from '@/lib/supabase/server';
 
 /**
  * Executor de Funções do Assistente IA
- * 
+ *
  * Este módulo executa as funções chamadas pelo Gemini,
  * interagindo com o banco de dados e APIs externas.
  */
 
 interface FunctionArgs {
     [key: string]: any;
+}
+
+/**
+ * Converte Clerk userId para Supabase user_id
+ */
+async function getSupabaseUserId(clerkUserId: string): Promise<number | null> {
+    const supabase = await createClient({ useServiceRole: true });
+
+    console.log('[getSupabaseUserId] Converting Clerk ID:', clerkUserId);
+
+    const { data: user, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_id', clerkUserId)
+        .single();
+
+    console.log('[getSupabaseUserId] Result:', { userId: user?.id, error });
+
+    return user?.id || null;
 }
 
 /**
@@ -136,8 +155,7 @@ async function listGeofences(deviceId: string, userId: string) {
     const { data: geofences, error } = await supabase
         .from('geofences')
         .select('*')
-        .eq('hardware_id', deviceId)
-        .eq('is_active', true)
+        .eq('device_id', device.id)  // Corrigido: usar device_id ao invés de hardware_id
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -172,51 +190,73 @@ async function createGeofence(
     latitude: number,
     longitude: number,
     radius: number,
-    userId: string
+    clerkUserId: string
 ) {
+    console.log('[createGeofence] Called with:', { deviceId, name, latitude, longitude, radius, clerkUserId });
+
     const supabase = await createClient({ useServiceRole: true });
 
+    // Converter Clerk userId para Supabase user_id
+    const userId = await getSupabaseUserId(clerkUserId);
+
+    if (!userId) {
+        console.log('[createGeofence] User not found');
+        return {
+            success: false,
+            error: 'Usuário não encontrado.',
+        };
+    }
+
+    console.log('[createGeofence] Supabase userId:', userId);
+
     // Verificar permissão
-    const { data: device } = await supabase
+    const { data: device, error: deviceError } = await supabase
         .from('devices')
         .select('id')
         .eq('hardware_id', deviceId)
         .eq('user_id', userId)
         .single();
 
+    console.log('[createGeofence] Device lookup:', { device, deviceError });
+
     if (!device) {
+        console.log('[createGeofence] Device not found for user');
         return {
             success: false,
-            error: 'Dispositivo não encontrado.',
+            error: 'Dispositivo não encontrado ou você não tem permissão.',
         };
     }
 
     // Validar raio
-    if (radius < 50 || radius > 1000) {
+    if (radius < 10 || radius > 5000) {
         return {
             success: false,
-            error: 'O raio deve estar entre 50 e 1000 metros.',
+            error: 'O raio deve estar entre 10 e 5000 metros.',
         };
     }
 
     // Criar geofence
+    console.log('[createGeofence] Inserting:', { device_id: device.id, name, latitude, longitude, radius });
+
     const { data: geofence, error } = await supabase
         .from('geofences')
         .insert({
-            hardware_id: deviceId,
+            device_id: device.id,  // Corrigido: usar device_id ao invés de hardware_id
             name,
             latitude,
             longitude,
             radius,
-            is_active: true,
         })
         .select()
         .single();
 
+    console.log('[createGeofence] Insert result:', { geofence, error });
+
     if (error) {
+        console.log('[createGeofence] Failed:', error);
         return {
             success: false,
-            error: 'Erro ao criar zona segura.',
+            error: `Erro ao criar zona segura: ${error.message}`,
         };
     }
 
@@ -399,8 +439,7 @@ async function analyzeGeofenceSuggestions(deviceId: string, days: number = 7, us
     const { data: geofences } = await supabase
         .from('geofences')
         .select('*')
-        .eq('hardware_id', deviceId)
-        .eq('is_active', true);
+        .eq('device_id', device.id);  // Corrigido: usar device_id ao invés de hardware_id
 
     // Buscar histórico de alertas de saída de zona
     const { data: alerts } = await supabase

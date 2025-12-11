@@ -157,7 +157,7 @@ export default async function DeviceDetailPage({
               <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-3">
                 <MapPin className="h-8 w-8 text-emerald-500" />
               </div>
-              <h3 className="font-semibold text-lg text-foreground">Editar Áreas Seguras</h3>
+              <h3 className="font-semibold text-lg text-foreground">Áreas Seguras</h3>
             </CardContent>
           </Card>
         </Link>
@@ -168,7 +168,7 @@ export default async function DeviceDetailPage({
               <div className="h-16 w-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-3">
                 <Bell className="h-8 w-8 text-amber-500" />
               </div>
-              <h3 className="font-semibold text-lg text-foreground">Ver Alertas</h3>
+              <h3 className="font-semibold text-lg text-foreground">Configurar Alertas</h3>
             </CardContent>
           </Card>
         </Link>
@@ -179,7 +179,7 @@ export default async function DeviceDetailPage({
               <div className="h-16 w-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-3">
                 <History className="h-8 w-8 text-purple-500" />
               </div>
-              <h3 className="font-semibold text-lg text-foreground">Ver Histórico</h3>
+              <h3 className="font-semibold text-lg text-foreground">Histórico de Localização</h3>
             </CardContent>
           </Card>
         </Link>
