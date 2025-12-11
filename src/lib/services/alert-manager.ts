@@ -68,6 +68,7 @@ export async function sendGeofenceAlert(
     const realPhones = phonesFromEmails; // recipient_phones não existe no banco
 
     console.log(`📋 [Alert] Config found: Emails=${realEmails.length}, Phones=${realPhones.length}, Enabled=${alertConfig.alerts_enabled}`);
+    console.log(`📱 [Alert] Phone numbers from DB:`, realPhones);
 
     const hasEmails = realEmails.length > 0;
     const hasPhones = realPhones.length > 0;

@@ -80,8 +80,48 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConf
     }));
   };
 
+  /**
+   * Remove o "9" extra de números brasileiros para compatibilidade com CallMeBot
+   * Números brasileiros: 55 + DDD (2 dígitos) + 9 + número (8 dígitos) = 13 dígitos
+   * CallMeBot espera: 55 + DDD (2 dígitos) + número (8 dígitos) = 12 dígitos
+   */
+  const normalizeBrazilianPhone = (phone: string): string => {
+    // Remove tudo que não é dígito
+    const digitsOnly = phone.replace(/\D/g, '');
+
+    // Se é número brasileiro (começa com 55)
+    if (digitsOnly.startsWith('55')) {
+      // Verifica se tem 13 dígitos E o 5º caractere é 9 (após 55 + DDD de 2 dígitos)
+      // Ex: 5531989277806 -> o 5º caractere (índice 4) é "9"
+      if (digitsOnly.length === 13 && digitsOnly[4] === '9') {
+        // Remove o "9" na posição 4
+        return digitsOnly.slice(0, 4) + digitsOnly.slice(5);
+      }
+
+      // Se já tem 12 dígitos, pode já estar normalizado
+      if (digitsOnly.length === 12) {
+        return digitsOnly;
+      }
+
+      // Se tem 11 dígitos e o 3º caractere é 9 (sem código de país completo)
+      // Ex: 31989277806 -> assumir que falta o código do país
+      if (digitsOnly.length === 11 && digitsOnly[2] === '9') {
+        // Remove o "9" na posição 2
+        return digitsOnly.slice(0, 2) + digitsOnly.slice(3);
+      }
+
+      // Se tem menos de 11 dígitos mas começa com 55 e tem 9 na posição 4
+      // Ex: 55989277806 (11 dígitos) onde 98 é o DDD e o próximo é 9
+      if (digitsOnly.length >= 11 && digitsOnly.length < 13 && digitsOnly[4] === '9') {
+        return digitsOnly.slice(0, 4) + digitsOnly.slice(5);
+      }
+    }
+
+    return digitsOnly;
+  };
+
   const addPhone = () => {
-    const phone = newPhone.trim();
+    let phone = newPhone.trim();
     if (!phone) return;
 
     // Validação simples de telefone (apenas números, min 10 dígitos)
@@ -89,6 +129,9 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConf
       alert('Telefone inválido. Use apenas números, com DDD e código do país (ex: 5511999999999)');
       return;
     }
+
+    // Normaliza números brasileiros removendo o "9" extra
+    phone = normalizeBrazilianPhone(phone);
 
     const currentPhones = config.recipient_phones || [];
     if (currentPhones.includes(phone)) {
@@ -192,7 +235,8 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConf
       <div className="py-4 border-b">
         <h3 className="font-semibold text-lg mb-3">WhatsApp (Telefones)</h3>
         <p className="text-sm text-gray-600 mb-2">
-          Adicione números no formato internacional (ex: 5511999999999)
+          Adicione números no formato: código do país + DDD + número<br />
+          <span className="text-xs">Ex: 5531989277806 (Brasil: 55 + 31 + 989277806)</span>
         </p>
         <div className="flex gap-2 mb-3">
           <Input
