@@ -6,10 +6,9 @@ import { Location, Device } from '@/types';
 import { LocationTimeline } from '@/components/history/LocationTimeline';
 import { GoogleLocationMap } from '@/components/history/GoogleLocationMap';
 import { HistoryFilters } from '@/components/history/HistoryFilters';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 
 export default function HistoryPage({
   params,
@@ -48,23 +47,18 @@ export default function HistoryPage({
           return;
         }
 
-        // Fetch locations from Supabase
-        const supabase = createClient();
-        const { data: locationData, error } = await supabase
-          .from('locations')
-          .select('*')
-          .eq('device_id', currentDevice.id)
-          .order('timestamp', { ascending: false })
-          .limit(100);
 
-        if (error) {
-          console.error('Error fetching locations:', error);
-          setLocations([]);
-          setFilteredLocations([]);
-        } else {
+        // Fetch locations via API (handles authentication properly)
+        const locationsRes = await fetch(`/api/devices/${hardwareId}/locations?limit=100`);
+        if (locationsRes.ok) {
+          const locationData = await locationsRes.json();
           const safeLocations = Array.isArray(locationData) ? locationData : [];
           setLocations(safeLocations);
           setFilteredLocations(safeLocations);
+        } else {
+          console.error('Failed to fetch locations:', locationsRes.statusText);
+          setLocations([]);
+          setFilteredLocations([]);
         }
       } else {
         console.error('Failed to fetch devices:', deviceRes.statusText);
@@ -140,17 +134,17 @@ export default function HistoryPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/">
+        <Link href={`/devices/${hardwareId}`}>
           <Button variant="ghost">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             Histórico - {device?.name || hardwareId}
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-1">
             Visualize o histórico completo de movimentações do dispositivo
           </p>
         </div>
@@ -182,12 +176,14 @@ export default function HistoryPage({
 
       {/* Content */}
       {filteredLocations.length === 0 ? (
-        <div className="bg-white rounded-lg border p-12 text-center">
-          <div className="text-6xl mb-4">📊</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <div className="bg-card/50 backdrop-blur-sm rounded-lg border border-border/50 p-12 text-center">
+          <div className="mx-auto h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+            <History className="h-10 w-10 text-primary" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
             Nenhuma localização encontrada
           </h3>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             O histórico aparecerá aqui quando o dispositivo começar a enviar dados
           </p>
         </div>
@@ -202,11 +198,11 @@ export default function HistoryPage({
         </div>
       )}
 
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-2">
+      <div className="mt-6 bg-primary/5 border border-primary/10 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-2">
           Recursos do Histórico
         </h3>
-        <ul className="space-y-2 text-sm text-blue-800">
+        <ul className="space-y-2 text-sm text-muted-foreground">
           <li>• Visualize todas as localizações com data e hora</li>
           <li>• Filtre por período (hoje, última semana, último mês)</li>
           <li>• Veja o trajeto percorrido no mapa</li>

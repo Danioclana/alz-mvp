@@ -31,7 +31,7 @@ interface MapViewProps {
 export function MapView({
   locations,
   center = [-23.55052, -46.633308], // São Paulo como padrão
-  zoom = 13,
+  zoom = 18,
   height = '500px'
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);

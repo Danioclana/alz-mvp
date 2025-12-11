@@ -105,15 +105,22 @@ A proposta visa aumentar a segurança do idoso e oferecer maior tranquilidade ao
 - ✅ Conhecimento especializado em Alzheimer
 - ✅ Suporte emocional aos cuidadores
 - ✅ Histórico de conversação
+- ✅ **Function Calling** - Assistente executa ações no sistema:
+  - ✅ Consultar localização atual (`getCurrentLocation`)
+  - ✅ Verificar status do dispositivo (`getDeviceStatus`)
+  - ✅ Listar zonas seguras (`listGeofences`)
+  - ✅ Criar zonas seguras via chat (`createGeofence`)
+  - ✅ Ver histórico de alertas (`getAlertHistory`)
+  - ✅ Ver histórico de movimentação (`getLocationHistory`)
+  - ✅ Listar dispositivos (`listDevices`)
+  - ✅ Converter endereços em coordenadas (`geocodeAddress`)
 
 ---
 
 ## Funcionalidades em Desenvolvimento
 
 ### Alta Prioridade
-- ⏳ Interface para criação de geofences (editor de mapa)
-- ⏳ Formulário de configuração de alertas
-- ⏳ Visualização de histórico de localização
+- ⏳ **Simulador de Hardware** - Para testes sem ESP32 físico
 - ⏳ Atualizações em tempo real (WebSockets/SSE)
 - ⏳ Notificações push (PWA)
 - ⏳ Firmware ESP32 completo
@@ -410,13 +417,16 @@ Este é um projeto de TCC (Trabalho de Conclusão de Curso). Contribuições sã
 
 ## Roadmap
 
-### Fase 1: MVP (Concluída ~60%)
+### Fase 1: MVP (Concluída ~80%)
 - ✅ Infraestrutura básica
 - ✅ Sistema de autenticação
 - ✅ Recepção de dados GPS
 - ✅ Detecção de geofences
 - ✅ Alertas por email
-- ⏳ Interfaces de gerenciamento
+- ✅ Interfaces de gerenciamento
+- ✅ Editor visual de geofences
+- ✅ Chat com IA + Function Calling
+- ⏳ Simulador de hardware
 
 ### Fase 2: Real-time & Mobile (Em Planejamento)
 - ⏳ WebSockets/SSE para updates em tempo real

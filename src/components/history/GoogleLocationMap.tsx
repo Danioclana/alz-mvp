@@ -98,7 +98,7 @@ export function GoogleLocationMap({ locations }: GoogleLocationMapProps) {
     } else if (path.length === 1) {
       // Se houver apenas um ponto, centralizar nele
       map.setCenter(path[0]);
-      map.setZoom(15);
+      map.setZoom(18);
     }
 
     return () => {
@@ -119,7 +119,7 @@ export function GoogleLocationMap({ locations }: GoogleLocationMapProps) {
     <div className="h-[500px] rounded-lg overflow-hidden border shadow-lg">
       <GoogleMapWrapper
         center={mapCenter}
-        zoom={13}
+        zoom={18}
         className="h-full w-full"
         style={{ height: '100%', width: '100%' }}
         onMapLoad={setMap}

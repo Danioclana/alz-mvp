@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Validar Device ID
     const deviceId = request.headers.get('X-Device-ID');
+    console.log(`📍 [API] Receiving location for device: ${deviceId}`);
+
     if (!deviceId) {
+      console.error('❌ [API] Missing X-Device-ID header');
       return NextResponse.json(
         { error: 'X-Device-ID header is required' },
         { status: 400 }
@@ -33,9 +36,11 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse e validar body
     const body = await request.json();
+    console.log('📦 [API] Payload:', JSON.stringify(body));
     const validation = LocationSchema.safeParse(body);
 
     if (!validation.success) {
+      console.error('❌ [API] Validation failed:', validation.error.format());
       return NextResponse.json(
         {
           error: 'Invalid request body',
@@ -46,6 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { latitude, longitude, timestamp, batteryLevel } = validation.data;
+    console.log(`✅ [API] Valid data: Lat=${latitude}, Lon=${longitude}, Bat=${batteryLevel}%`);
 
     // 3. Conectar ao Supabase com SERVICE ROLE (bypass RLS)
     const supabase = await createClient({ useServiceRole: true });
@@ -58,11 +64,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (deviceError || !device) {
+      console.error(`❌ [API] Device not found: ${deviceId}`);
       return NextResponse.json(
         { error: 'Device not found' },
         { status: 404 }
       );
     }
+    console.log(`✅ [API] Device found: ID=${device.id}`);
 
     // 5. Inserir localização
     const { error: locationError } = await supabase
@@ -76,12 +84,13 @@ export async function POST(request: NextRequest) {
       });
 
     if (locationError) {
-      console.error('Error inserting location:', locationError);
+      console.error('❌ [API] Error inserting location:', locationError);
       return NextResponse.json(
         { error: 'Failed to save location' },
         { status: 500 }
       );
     }
+    console.log('✅ [API] Location saved to DB');
 
     // 6. Atualizar device (bateria e timestamp)
     await supabase
@@ -93,14 +102,17 @@ export async function POST(request: NextRequest) {
       .eq('id', device.id);
 
     // 7. Verificar geofences e processar alertas (async, não bloqueia resposta)
+    console.log('🔍 [API] Checking geofences...');
     checkGeofenceViolation(device.id, latitude, longitude)
       .then((isOutside) => {
+        console.log(`🛡️ [API] Geofence check result: ${isOutside ? 'OUTSIDE' : 'INSIDE'}`);
         if (isOutside) {
+          console.log('🚨 [API] Triggering alert...');
           sendGeofenceAlert(device.id, latitude, longitude);
         }
       })
       .catch((error) => {
-        console.error('Error checking geofence:', error);
+        console.error('❌ [API] Error checking geofence:', error);
       });
 
     // 8. Responder ao ESP32

@@ -102,17 +102,17 @@ export default function GeofencesPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/">
+        <Link href={`/devices/${hardwareId}`}>
           <Button variant="ghost">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             Zonas Seguras - {device?.name || hardwareId}
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-1">
             Gerencie áreas seguras para este dispositivo
           </p>
         </div>
@@ -125,11 +125,11 @@ export default function GeofencesPage({
         onDelete={handleDeleteGeofence}
       />
 
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-2">
-          Como funcionam as Geofences
+      <div className="mt-6 bg-primary/5 border border-primary/10 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-2">
+          Como Funcionam as Áreas Seguras
         </h3>
-        <ul className="space-y-2 text-sm text-blue-800">
+        <ul className="space-y-2 text-sm text-muted-foreground">
           <li>• Defina áreas circulares no mapa onde o paciente deve permanecer</li>
           <li>• Receba alertas por email quando sair da área segura</li>
           <li>• Configure múltiplas geofences para diferentes locais (casa, trabalho, etc.)</li>

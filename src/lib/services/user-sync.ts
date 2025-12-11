@@ -19,17 +19,62 @@ export async function ensureUserExists(): Promise<number | null> {
 
     const supabase = await createClient({ useServiceRole: true });
 
-    // Tentar buscar usuário existente
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerkUser.id)
-      .single();
+    // Tentar buscar usuário existente com retry
+    let fetchAttempt = 0;
+    let existingUser = null;
+    let fetchError = null;
 
-    console.log('[ensureUserExists] Fetch result:', { existingUser, fetchError });
+    while (fetchAttempt < 3) {
+      try {
+        const result = await supabase
+          .from('users')
+          .select('id')
+          .eq('clerk_id', clerkUser.id)
+          .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('Error fetching user from Supabase:', fetchError);
+        existingUser = result.data;
+        fetchError = result.error;
+        break; // Success, exit retry loop
+      } catch (err: unknown) {
+        fetchAttempt++;
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error(`[ensureUserExists] Fetch attempt ${fetchAttempt} failed:`, errorMessage);
+
+        if (fetchAttempt < 3) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 100 * fetchAttempt));
+        } else {
+          fetchError = err;
+        }
+      }
+    }
+
+    interface SupabaseError {
+      message?: string;
+      details?: string;
+      hint?: string;
+      code?: string;
+      stack?: string;
+    }
+
+    console.log('[ensureUserExists] Fetch result:', {
+      existingUser,
+      fetchError: fetchError ? {
+        message: (fetchError as SupabaseError).message || String(fetchError),
+        details: (fetchError as SupabaseError).details || (fetchError as SupabaseError).stack || String(fetchError),
+        hint: (fetchError as SupabaseError).hint || '',
+        code: (fetchError as SupabaseError).code || ''
+      } : null
+    });
+
+    if (fetchError && (fetchError as SupabaseError).code !== 'PGRST116') {
+      const errorDetails = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+      console.error('Error fetching user from Supabase:', {
+        message: errorDetails.message,
+        details: (fetchError as SupabaseError).details || errorDetails.stack || String(fetchError),
+        hint: (fetchError as SupabaseError).hint || '',
+        code: (fetchError as SupabaseError).code || ''
+      });
       return null;
     }
 
@@ -68,8 +113,13 @@ export async function ensureUserExists(): Promise<number | null> {
 
     console.log('[ensureUserExists] ✅ User created successfully, ID:', newUser.id);
     return newUser.id;
-  } catch (error) {
-    console.error('Unexpected error in ensureUserExists:', error);
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error('Unexpected error in ensureUserExists:', {
+      message: err.message,
+      stack: err.stack,
+      details: String(error)
+    });
     return null;
   }
 }

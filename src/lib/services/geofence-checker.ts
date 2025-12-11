@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { isPointInsideCircle } from '@/lib/utils/distance';
+import { sendGeofenceAlert } from './alert-manager';
 import type { Geofence } from '@/types';
 
 /**
@@ -33,27 +34,44 @@ export async function checkGeofenceViolation(
   }
 
   // Verificar se está dentro de pelo menos uma geofence
-  const isInsideAnyGeofence = geofences.some((geofence: Geofence) =>
-    isPointInsideCircle(
+  console.log(`🔍 [Geofence] Checking ${geofences.length} geofences for device ${deviceId}`);
+
+  const isInsideAnyGeofence = geofences.some((geofence: Geofence) => {
+    const isInside = isPointInsideCircle(
       latitude,
       longitude,
       geofence.latitude,
       geofence.longitude,
       geofence.radius
-    )
-  );
+    );
+
+    if (isInside) {
+      console.log(`✅ [Geofence] Inside "${geofence.name}" (ID: ${geofence.id})`);
+    }
+
+    return isInside;
+  });
 
   // Se não está dentro de nenhuma, está fora (violação)
   const isOutside = !isInsideAnyGeofence;
 
-  // Atualizar status de alerta
-  await supabase
+  // Atualizar status de alerta (usando upsert para garantir que existe)
+  const { error: statusError } = await supabase
     .from('alert_status')
-    .update({
+    .upsert({
+      device_id: deviceId,
       is_outside_geofence: isOutside,
       updated_at: new Date().toISOString(),
-    })
-    .eq('device_id', deviceId);
+    }, { onConflict: 'device_id' });
+
+  if (statusError) {
+    console.error('Error updating alert status:', statusError);
+  }
+
+  if (isOutside) {
+    // Tentar enviar alerta (o gerenciador cuida da frequência e configurações)
+    await sendGeofenceAlert(deviceId, latitude, longitude);
+  }
 
   return isOutside;
 }

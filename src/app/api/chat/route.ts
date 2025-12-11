@@ -48,12 +48,11 @@ export async function POST(request: NextRequest) {
 
     const { messages } = validation.data;
 
-    // Processar chat
-    const response = await processChat(messages);
+    // Processar chat com function calling
+    const response = await processChat(messages, userId);
 
     return NextResponse.json({
-      role: 'assistant',
-      content: response,
+      message: response,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

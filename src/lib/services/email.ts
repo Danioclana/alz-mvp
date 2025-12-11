@@ -25,7 +25,8 @@ export async function sendGeofenceAlertEmail({
 
   try {
     const { data, error } = await resend.emails.send({
-      from: `${process.env.ALERTS_FROM_NAME} <${process.env.ALERTS_FROM_EMAIL}>`,
+      // Usando domínio de teste padrão do Resend (sempre funciona sem verificação)
+      from: `${process.env.ALERTS_FROM_NAME || 'Alzheimer Care'} <onboarding@resend.dev>`,
       to: recipientEmails,
       subject: `🚨 Alerta: ${patientName} saiu da área segura`,
       html: `
@@ -60,10 +61,10 @@ export async function sendGeofenceAlertEmail({
 
               <div style="text-align: center;">
                 <a href="${googleMapsLink}" class="button" target="_blank">
-                  📍 Ver no Google Maps
+                  Ver Localização no Mapa
                 </a>
                 <a href="${pauseAlertLink}" class="button button-secondary" target="_blank">
-                  ⏸️ Pausar Alertas (1h)
+                  Pausar Alertas por 1 hora
                 </a>
               </div>
 
@@ -104,7 +105,8 @@ export async function sendLowBatteryEmail({
 }: SendLowBatteryEmailParams) {
   try {
     const { data, error } = await resend.emails.send({
-      from: `${process.env.ALERTS_FROM_NAME} <${process.env.ALERTS_FROM_EMAIL}>`,
+      // Usando domínio de teste padrão do Resend (sempre funciona sem verificação)
+      from: `${process.env.ALERTS_FROM_NAME || 'Alzheimer Care'} <onboarding@resend.dev>`,
       to: recipientEmails,
       subject: `🔋 Bateria Baixa: ${deviceName} - ${Math.round(batteryLevel)}%`,
       html: `
