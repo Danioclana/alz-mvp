@@ -13,30 +13,80 @@ interface LocationData {
   isLatest?: boolean; // Indica se é a localização mais recente
 }
 
+interface GeofenceData {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius: number;
+}
+
 interface GoogleDevicesMapViewProps {
   locations: LocationData[];
+  geofences?: GeofenceData[];
   height?: string;
 }
 
-export function GoogleDevicesMapView({ locations, height = '600px' }: GoogleDevicesMapViewProps) {
+export function GoogleDevicesMapView({ locations, geofences = [], height = '600px' }: GoogleDevicesMapViewProps) {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [polylines, setPolylines] = useState<google.maps.Polyline[]>([]);
+  const [circles, setCircles] = useState<google.maps.Circle[]>([]);
 
   // Encontrar a localização mais recente para centralizar o mapa
   const latestLocation = locations.find(loc => loc.isLatest !== false) || locations[0];
+  // Se não tiver localizacao, tentar usar a primeira geofence
+  const firstGeofence = geofences[0];
 
   const center = latestLocation
     ? { lat: latestLocation.latitude, lng: latestLocation.longitude }
-    : { lat: -23.550520, lng: -46.633308 };
+    : firstGeofence 
+      ? { lat: firstGeofence.latitude, lng: firstGeofence.longitude }
+      : { lat: -23.550520, lng: -46.633308 };
 
   useEffect(() => {
     if (!map) return;
 
-    // Clear existing markers and polylines
+    // Clear existing markers, polylines, and circles
     markers.forEach(marker => marker.setMap(null));
     polylines.forEach(polyline => polyline.setMap(null));
+    circles.forEach(circle => circle.setMap(null));
 
+    // --- Render Geofences ---
+    const newCircles: google.maps.Circle[] = [];
+    
+    geofences.forEach(geofence => {
+      const circle = new google.maps.Circle({
+        strokeColor: '#10b981', // Emerald 500
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#10b981',
+        fillOpacity: 0.15,
+        map,
+        center: { lat: geofence.latitude, lng: geofence.longitude },
+        radius: geofence.radius,
+        title: geofence.name,
+      });
+
+      // Info window for geofence
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<div style="padding: 8px;">
+          <h3 style="font-weight: bold; font-size: 14px; color: #047857;">🛡️ ${geofence.name}</h3>
+          <p style="font-size: 12px; color: #666;">Raio: ${geofence.radius}m</p>
+        </div>`
+      });
+
+      circle.addListener('click', (e: any) => {
+        // Position info window at the click location or center
+        infoWindow.setPosition(e.latLng || { lat: geofence.latitude, lng: geofence.longitude });
+        infoWindow.open(map);
+      });
+
+      newCircles.push(circle);
+    });
+    setCircles(newCircles);
+
+    // --- Render Locations ---
     // Agrupar localizações por dispositivo para desenhar linhas
     const deviceLocations = new Map<string, LocationData[]>();
 
@@ -158,8 +208,9 @@ export function GoogleDevicesMapView({ locations, height = '600px' }: GoogleDevi
     return () => {
       newMarkers.forEach(marker => marker.setMap(null));
       newPolylines.forEach(polyline => polyline.setMap(null));
+      newCircles.forEach(circle => circle.setMap(null));
     };
-  }, [map, locations, latestLocation]);
+  }, [map, locations, geofences, latestLocation]); // Added geofences dependency
 
   return (
     <div style={{ height }}>
