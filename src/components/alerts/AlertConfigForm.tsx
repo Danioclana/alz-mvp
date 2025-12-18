@@ -319,9 +319,14 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave, submitLabel
 
       {/* Ações */}
       <div className="flex gap-4 pt-4">
-      <Button type="submit" className="w-full" disabled={isSaving}>
-        {isSaving ? 'Salvando...' : submitLabel}
-      </Button>
-    </form>
+        <Button 
+          onClick={handleSave} 
+          className="w-full" 
+          disabled={saving || (config.recipient_emails.length === 0 && (!config.recipient_phones || config.recipient_phones.length === 0))}
+        >
+          {saving ? 'Salvando...' : submitLabel}
+        </Button>
+      </div>
+    </div>
   );
 }
