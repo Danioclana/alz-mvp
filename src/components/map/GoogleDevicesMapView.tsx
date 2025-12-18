@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { GoogleMapWrapper } from './GoogleMapWrapper';
 
 interface LocationData {
@@ -29,9 +29,9 @@ interface GoogleDevicesMapViewProps {
 
 export function GoogleDevicesMapView({ locations, geofences = [], height = '600px' }: GoogleDevicesMapViewProps) {
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
-  const [polylines, setPolylines] = useState<google.maps.Polyline[]>([]);
-  const [circles, setCircles] = useState<google.maps.Circle[]>([]);
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const polylinesRef = useRef<google.maps.Polyline[]>([]);
+  const circlesRef = useRef<google.maps.Circle[]>([]);
 
   // Encontrar a localização mais recente para centralizar o mapa
   const latestLocation = locations.find(loc => loc.isLatest !== false) || locations[0];
@@ -53,13 +53,15 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
     if (!map) return;
 
     // Clear existing markers, polylines, and circles
-    markers.forEach(marker => marker.setMap(null));
-    polylines.forEach(polyline => polyline.setMap(null));
-    circles.forEach(circle => circle.setMap(null));
+    markersRef.current.forEach(marker => marker.setMap(null));
+    polylinesRef.current.forEach(polyline => polyline.setMap(null));
+    circlesRef.current.forEach(circle => circle.setMap(null));
+    
+    markersRef.current = [];
+    polylinesRef.current = [];
+    circlesRef.current = [];
 
     // --- Render Geofences ---
-    const newCircles: google.maps.Circle[] = [];
-    
     geofences.forEach(geofence => {
       // Validate coordinates before creating circle
       if (
@@ -81,7 +83,6 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
         map,
         center: { lat: geofence.latitude, lng: geofence.longitude },
         radius: geofence.radius,
-        title: geofence.name,
       });
 
       // Info window for geofence
@@ -98,9 +99,8 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
         infoWindow.open(map);
       });
 
-      newCircles.push(circle);
+      circlesRef.current.push(circle);
     });
-    setCircles(newCircles);
 
     // --- Render Locations ---
     // Agrupar localizações por dispositivo para desenhar linhas
@@ -113,9 +113,6 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
       }
       deviceLocations.get(key)!.push(location);
     });
-
-    const newMarkers: google.maps.Marker[] = [];
-    const newPolylines: google.maps.Polyline[] = [];
 
     // Para cada dispositivo, desenhar marcadores e linha
     deviceLocations.forEach((deviceLocs, deviceName) => {
@@ -189,7 +186,7 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
           infoWindow.open(map, marker);
         });
 
-        newMarkers.push(marker);
+        markersRef.current.push(marker);
       });
 
       // Desenhar linha entre os pontos se houver mais de uma localização
@@ -208,23 +205,21 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
           map: map,
         });
 
-        newPolylines.push(polyline);
+        polylinesRef.current.push(polyline);
       }
     });
-
-    setMarkers(newMarkers);
-    setPolylines(newPolylines);
 
     // Sempre centralizar na localização mais recente com zoom próximo
     if (latestLocation) {
       map.setCenter({ lat: latestLocation.latitude, lng: latestLocation.longitude });
       map.setZoom(18);
     }
-
+    
+    // Cleanup runs when deps change (e.g. locations update)
     return () => {
-      newMarkers.forEach(marker => marker.setMap(null));
-      newPolylines.forEach(polyline => polyline.setMap(null));
-      newCircles.forEach(circle => circle.setMap(null));
+      markersRef.current.forEach(marker => marker.setMap(null));
+      polylinesRef.current.forEach(polyline => polyline.setMap(null));
+      circlesRef.current.forEach(circle => circle.setMap(null));
     };
   }, [map, locations, geofences, latestLocation]); // Added geofences dependency
 
