@@ -635,41 +635,45 @@ async function deleteDevice(deviceId: string, userId: number) {
 }
 
 /**
- * Remove o "9" extra de números brasileiros para compatibilidade com CallMeBot
+ * Normaliza números de telefone para o formato padrão do CallMeBot (55 + DDD + 8 dígitos)
+ * Remove o 9º dígito extra de celulares brasileiros.
+ * Adiciona 55 se estiver faltando.
+ * Valida formato.
  */
 function normalizeBrazilianPhone(phone: string): string {
-    // Remove tudo que não é dígito
-    const digitsOnly = phone.replace(/\D/g, '');
+    let digits = phone.replace(/\D/g, '');
 
-    // Se é número brasileiro (começa com 55)
-    if (digitsOnly.startsWith('55')) {
-        // Verifica se tem 13 dígitos E o 5º caractere é 9 (após 55 + DDD de 2 dígitos)
-        // Ex: 5531989277806 -> o 5º caractere (índice 4) é "9"
-        if (digitsOnly.length === 13 && digitsOnly[4] === '9') {
-            // Remove o "9" na posição 4
-            return digitsOnly.slice(0, 4) + digitsOnly.slice(5);
-        }
-
-        // Se já tem 12 dígitos, pode já estar normalizado
-        if (digitsOnly.length === 12) {
-            return digitsOnly;
-        }
-
-        // Se tem 11 dígitos e o 3º caractere é 9 (sem código de país completo)
-        // Ex: 31989277806 -> assumir que falta o código do país
-        if (digitsOnly.length === 11 && digitsOnly[2] === '9') {
-            // Remove o "9" na posição 2
-            return digitsOnly.slice(0, 2) + digitsOnly.slice(3);
-        }
-
-        // Se tem menos de 11 dígitos mas começa com 55 e tem 9 na posição 4
-        // Ex: 55989277806 (11 dígitos) onde 98 é o DDD e o próximo é 9
-        if (digitsOnly.length >= 11 && digitsOnly.length < 13 && digitsOnly[4] === '9') {
-            return digitsOnly.slice(0, 4) + digitsOnly.slice(5);
+    // Adicionar 55 (Brasil) se o número parecer ter apenas DDD+Número (10 ou 11 dígitos)
+    if (!digits.startsWith('55')) {
+        if (digits.length === 10 || digits.length === 11) {
+            digits = '55' + digits;
         }
     }
 
-    return digitsOnly;
+    // Validar números brasileiros (iniciados em 55)
+    if (digits.startsWith('55')) {
+        // Caso: 55 + DDD + 9 + XXXXXXXX (13 dígitos)
+        // O 9 extra está na posição 4 (0-based) -> 55(0,1) + DD(2,3) + 9(4)
+        if (digits.length === 13) {
+            if (digits[4] === '9') {
+                // Remove o 9 da posição 4
+                return digits.slice(0, 4) + digits.slice(5);
+            } else {
+                throw new Error(`Número inválido: ${phone}. O formato esperado para 13 dígitos é 55 + DDD + 9 + Número.`);
+            }
+        }
+
+        // Caso: 55 + DDD + XXXXXXXX (12 dígitos)
+        if (digits.length === 12) {
+            return digits;
+        }
+
+        // Qualquer outro comprimento começando com 55 é inválido para este sistema
+        throw new Error(`Número inválido: ${phone}. Verifique se digitou o DDD corretamente. Esperado: 55 + DDD + Número (sem o 9 extra ou com ele).`);
+    }
+
+    // Se chegou aqui e não começa com 55, é um formato desconhecido ou muito curto (sem DDD)
+    throw new Error(`Número inválido: ${phone}. Certifique-se de incluir o DDD (ex: 31999999999) ou o código do país (ex: 5531999999999).`);
 }
 
 /**
@@ -905,11 +909,11 @@ export async function executeFunction(
                     error: `Função desconhecida: ${functionName}`,
                 };
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error(`Error executing function ${functionName}:`, error);
         return {
             success: false,
-            error: 'Erro ao executar função.',
+            error: error.message || 'Erro ao executar função.',
         };
     }
 }
