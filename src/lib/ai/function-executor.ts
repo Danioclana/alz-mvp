@@ -258,6 +258,57 @@ async function createGeofence(
 }
 
 /**
+ * Remove uma zona segura
+ */
+async function deleteGeofence(deviceId: string, userId: number, geofenceId?: number, geofenceName?: string) {
+    const supabase = await createClient({ useServiceRole: true });
+
+    // Buscar device
+    const { data: device } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('hardware_id', deviceId)
+        .eq('user_id', userId)
+        .single();
+
+    if (!device) {
+        return {
+            success: false,
+            error: 'Dispositivo não encontrado.',
+        };
+    }
+
+    let query = supabase.from('geofences').delete().eq('device_id', device.id);
+
+    if (geofenceId) {
+        query = query.eq('id', geofenceId);
+    } else if (geofenceName) {
+        query = query.eq('name', geofenceName);
+    } else {
+        return {
+            success: false,
+            error: 'É necessário fornecer o ID ou nome da zona segura.',
+        };
+    }
+
+    const { error } = await query;
+
+    if (error) {
+        return {
+            success: false,
+            error: 'Erro ao remover zona segura.',
+        };
+    }
+
+    return {
+        success: true,
+        data: {
+            message: 'Zona segura removida com sucesso.',
+        },
+    };
+}
+
+/**
  * Obtém histórico de alertas
  */
 async function getAlertHistory(deviceId: string, days: number = 7, userId: number) {
@@ -556,6 +607,34 @@ async function registerDevice(hardwareId: string, name: string, patientName: str
 }
 
 /**
+ * Remove um dispositivo
+ */
+async function deleteDevice(deviceId: string, userId: number) {
+    const supabase = await createClient({ useServiceRole: true });
+
+    // Verificar ownership e deletar
+    const { error } = await supabase
+        .from('devices')
+        .delete()
+        .eq('hardware_id', deviceId)
+        .eq('user_id', userId);
+
+    if (error) {
+        return {
+            success: false,
+            error: 'Erro ao deletar dispositivo.',
+        };
+    }
+
+    return {
+        success: true,
+        data: {
+            message: 'Dispositivo removido com sucesso.',
+        },
+    };
+}
+
+/**
  * Atualiza configurações de alerta
  */
 async function updateAlertConfig(
@@ -758,6 +837,12 @@ export async function executeFunction(
 
             case 'registerDevice':
                 return await registerDevice(args.hardwareId, args.name, args.patientName, userId);
+
+            case 'deleteDevice':
+                return await deleteDevice(args.deviceId, userId);
+
+            case 'deleteGeofence':
+                return await deleteGeofence(args.deviceId, userId, args.geofenceId, args.geofenceName);
 
             case 'updateAlertConfig':
                 return await updateAlertConfig(args.deviceId, userId, {

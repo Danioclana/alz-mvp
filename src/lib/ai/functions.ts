@@ -97,6 +97,28 @@ export const AVAILABLE_FUNCTIONS: FunctionDefinition[] = [
         },
     },
     {
+        name: 'deleteGeofence',
+        description: 'Remove uma zona segura (geofence) específica.',
+        parameters: {
+            type: 'object',
+            properties: {
+                deviceId: {
+                    type: 'string',
+                    description: 'ID do dispositivo (hardware_id)',
+                },
+                geofenceId: {
+                    type: 'number',
+                    description: 'ID numérico da geofence a ser removida (pode ser obtido listando as geofences)',
+                },
+                geofenceName: {
+                    type: 'string',
+                    description: 'Nome da geofence a ser removida (alternativa ao ID)',
+                },
+            },
+            required: ['deviceId'],
+        },
+    },
+    {
         name: 'getAlertHistory',
         description: 'Obtém o histórico de alertas de um dispositivo nos últimos dias.',
         parameters: {
@@ -193,6 +215,20 @@ export const AVAILABLE_FUNCTIONS: FunctionDefinition[] = [
                 },
             },
             required: ['hardwareId', 'name', 'patientName'],
+        },
+    },
+    {
+        name: 'deleteDevice',
+        description: 'Remove um dispositivo do sistema. CUIDADO: Esta ação é irreversível e apagará todo o histórico e configurações.',
+        parameters: {
+            type: 'object',
+            properties: {
+                deviceId: {
+                    type: 'string',
+                    description: 'ID do dispositivo (hardware_id)',
+                },
+            },
+            required: ['deviceId'],
         },
     },
     {
