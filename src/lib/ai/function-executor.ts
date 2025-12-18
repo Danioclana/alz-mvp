@@ -77,7 +77,7 @@ async function getCurrentLocation(deviceId: string, userId: number) {
     const { data: location, error: locationError } = await supabase
         .from('locations')
         .select('*')
-        .eq('hardware_id', deviceId)
+        .eq('device_id', device.id) // Corrected: use device_id
         .order('timestamp', { ascending: false })
         .limit(1)
         .single();
@@ -170,7 +170,7 @@ async function getDeviceStatus(deviceId: string, userId: number) {
     const { data: location } = await supabase
         .from('locations')
         .select('battery_level, timestamp')
-        .eq('hardware_id', deviceId)
+        .eq('device_id', device.id) // Corrected: use device_id
         .order('timestamp', { ascending: false })
         .limit(1)
         .single();
@@ -395,7 +395,7 @@ async function getAlertHistory(deviceId: string, days: number = 7, userId: numbe
     const { data: alerts, error } = await supabase
         .from('alert_history')
         .select('*')
-        .eq('hardware_id', deviceId)
+        .eq('device_id', device.id) // Corrected: use device_id
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
 
@@ -447,7 +447,7 @@ async function getLocationHistory(deviceId: string, hours: number = 24, userId: 
     const { data: locations, error } = await supabase
         .from('locations')
         .select('latitude, longitude, battery_level, timestamp')
-        .eq('hardware_id', deviceId)
+        .eq('device_id', device.id) // Corrected: use device_id
         .gte('timestamp', startDate.toISOString())
         .order('timestamp', { ascending: false });
 
@@ -528,7 +528,7 @@ async function analyzeGeofenceSuggestions(deviceId: string, days: number = 7, us
     const { data: locations } = await supabase
         .from('locations')
         .select('latitude, longitude, timestamp')
-        .eq('hardware_id', deviceId)
+        .eq('device_id', device.id) // Corrected: use device_id
         .gte('timestamp', startDate.toISOString())
         .order('timestamp', { ascending: false })
         .limit(1000); // Limitar para não estourar contexto
@@ -543,7 +543,7 @@ async function analyzeGeofenceSuggestions(deviceId: string, days: number = 7, us
     const { data: alerts } = await supabase
         .from('alert_history')
         .select('*')
-        .eq('hardware_id', deviceId)
+        .eq('device_id', device.id) // Corrected: use device_id
         .eq('alert_type', 'GEOFENCE_EXIT')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
