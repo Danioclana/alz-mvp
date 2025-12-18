@@ -31,6 +31,28 @@ async function getSupabaseUserId(clerkUserId: string): Promise<number | null> {
 }
 
 /**
+ * Converte coordenadas em endereço (Reverse Geocoding)
+ */
+async function reverseGeocode(lat: number, lon: number) {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+            {
+                headers: {
+                    'User-Agent': 'AlzheimerCare/1.0',
+                },
+            }
+        );
+
+        const data = await response.json();
+        return data.display_name || 'Endereço desconhecido';
+    } catch (error) {
+        console.error('Error reverse geocoding:', error);
+        return 'Endereço indisponível';
+    }
+}
+
+/**
  * Obtém a localização atual de um dispositivo
  */
 async function getCurrentLocation(deviceId: string, userId: number) {
@@ -72,6 +94,9 @@ async function getCurrentLocation(deviceId: string, userId: number) {
     const now = new Date();
     const minutesAgo = Math.floor((now.getTime() - lastUpdate.getTime()) / 60000);
 
+    // Buscar endereço
+    const address = await reverseGeocode(location.latitude, location.longitude);
+
     return {
         success: true,
         data: {
@@ -81,7 +106,9 @@ async function getCurrentLocation(deviceId: string, userId: number) {
             batteryLevel: location.battery_level,
             timestamp: location.timestamp,
             minutesAgo,
+            address,
             mapsUrl: `https://www.google.com/maps?q=${location.latitude},${location.longitude}`,
+            appMapUrl: `/map?device=${deviceId}`,
         },
     };
 }
