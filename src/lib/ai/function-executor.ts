@@ -96,20 +96,51 @@ async function getCurrentLocation(deviceId: string, userId: number) {
     const now = new Date();
     const minutesAgo = Math.floor((now.getTime() - lastUpdate.getTime()) / 60000);
 
+    let effectiveLat = location.latitude;
+    let effectiveLon = location.longitude;
+
+    // Heurística para detectar e corrigir possível inversão de Lat/Lon para o Brasil
+    // Latitudes do Brasil: ~-35 a ~+6
+    // Longitudes do Brasil: ~-75 a ~-30
+    const BRAZIL_MIN_LAT = -35;
+    const BRAZIL_MAX_LAT = 6;
+    const BRAZIL_MIN_LON = -75;
+    const BRAZIL_MAX_LON = -30;
+
+    const currentLatInLatRange = effectiveLat >= BRAZIL_MIN_LAT && effectiveLat <= BRAZIL_MAX_LAT;
+    const currentLonInLonRange = effectiveLon >= BRAZIL_MIN_LON && effectiveLon <= BRAZIL_MAX_LON;
+
+    const isLatActuallyLon = effectiveLat >= BRAZIL_MIN_LON && effectiveLat <= BRAZIL_MAX_LON;
+    const isLonActuallyLat = effectiveLon >= BRAZIL_MIN_LAT && effectiveLon <= BRAZIL_MAX_LAT;
+
+    // Detectar inversão: se a "latitude" lida do DB parece mais uma longitude
+    // e a "longitude" lida do DB parece mais uma latitude, e as atuais estão fora do range esperado.
+    if (!currentLatInLatRange && isLatActuallyLon && !currentLonInLonRange && isLonActuallyLat) {
+        console.warn(`[getCurrentLocation] Detected likely coordinate swap for device ${deviceId}. Swapping (Lat: ${effectiveLat}, Lon: ${effectiveLon}) -> (Lat: ${effectiveLon}, Lon: ${effectiveLat})`);
+        [effectiveLat, effectiveLon] = [effectiveLon, effectiveLat];
+    } else if (!currentLatInLatRange && isLatActuallyLon && currentLonInLonRange) {
+        // Se a latitude lida está fora da faixa de latitude mas dentro da de longitude,
+        // e a longitude lida está na faixa correta, é um forte indício de swap simples.
+        console.warn(`[getCurrentLocation] Detected likely coordinate swap (partial check) for device ${deviceId}. Swapping (Lat: ${effectiveLat}, Lon: ${effectiveLon}) -> (Lat: ${effectiveLon}, Lon: ${effectiveLat})`);
+        [effectiveLat, effectiveLon] = [effectiveLon, effectiveLat];
+    }
+    // Caso contrário, assume-se que não estão invertidas ou que a inversão não pode ser detectada heuristicamente.
+
+
     // Buscar endereço
-    const address = await reverseGeocode(location.latitude, location.longitude);
+    const address = await reverseGeocode(effectiveLat, effectiveLon);
 
     return {
         success: true,
         data: {
             deviceName: device.name,
-            latitude: location.latitude,
-            longitude: location.longitude,
+            latitude: effectiveLat, // Retornar os valores efetivos (corrigidos)
+            longitude: effectiveLon, // Retornar os valores efetivos (corrigidos)
             batteryLevel: location.battery_level,
             timestamp: location.timestamp,
             minutesAgo,
             address,
-            mapsUrl: `https://www.google.com/maps?q=${location.latitude},${location.longitude}`,
+            mapsUrl: `https://www.google.com/maps?q=${effectiveLat},${effectiveLon}`,
             appMapUrl: `/map?device=${deviceId}`,
         },
     };
