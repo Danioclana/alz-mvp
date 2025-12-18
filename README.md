@@ -28,34 +28,83 @@ A precisão e confiabilidade do sistema baseiam-se em algoritmos geométricos fu
 ### 1. Cálculo de Distância (Fórmula de Haversine)
 Para determinar se o paciente está dentro ou fora de uma zona segura, utilizamos a **Fórmula de Haversine**. Esta equação permite calcular a distância do grande círculo entre dois pontos em uma esfera (a Terra) a partir de suas longitudes e latitudes.
 
-**Fórmula implementada:**
-```math
-a = \sin^2(\frac{\Delta\phi}{2}) + \cos \phi_1 \cdot \cos \phi_2 \cdot \sin^2(\frac{\Delta\lambda}{2})
-c = 2 \cdot \text{atan2}(\sqrt{a}, \sqrt{1-a})
-d = R \cdot c
+**Implementação (`src/lib/utils/distance.ts`):**
+```typescript
+/**
+ * Calcula a distância entre duas coordenadas GPS usando a fórmula de Haversine
+ */
+export function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371e3; // Raio da Terra em metros
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distância em metros
+}
 ```
-Onde:
-*   $\phi$ é a latitude, $\lambda$ é a longitude.
-*   $R$ é o raio da Terra (aproximadamente 6.371 km).
-*   $d$ é a distância resultante em metros.
 
-*Implementação: `src/lib/utils/distance.ts`*
+### 2. Algoritmo de Verificação de Geofence
+O sistema verifica a segurança do paciente a cada atualização de posição enviada pelo dispositivo. O algoritmo opera sob a premissa de que o paciente está seguro se estiver dentro de *qualquer* uma das zonas configuradas.
 
-### 2. Verificação de Geofence (Point-in-Circle)
-O sistema verifica a segurança do paciente a cada atualização de posição enviada pelo dispositivo.
+**Implementação (`src/lib/services/geofence-checker.ts`):**
+```typescript
+export async function checkGeofenceViolation(
+  deviceId: number,
+  latitude: number,
+  longitude: number
+): Promise<boolean> {
+  // 1. Busca todas as geofences do dispositivo
+  const { data: geofences } = await supabase
+    .from('geofences')
+    .select('*')
+    .eq('device_id', deviceId);
 
-**Algoritmo:**
-1.  O sistema busca todas as geofences ativas associadas ao dispositivo.
-2.  Para cada geofence (definida por um centro $C$ e um raio $r$), calcula-se a distância $d$ entre a posição atual do paciente $P$ e $C$.
-3.  **Condição de Segurança:** Se $d \le r$, o paciente está dentro da zona segura.
-4.  **Violação:** Se o paciente não estiver dentro de **nenhuma** das geofences configuradas, um alerta é disparado.
+  if (!geofences || geofences.length === 0) return false;
 
-*Implementação: `src/lib/services/geofence-checker.ts`*
+  // 2. Verifica se o ponto está dentro de ALGUMA geofence
+  const isInsideAnyGeofence = geofences.some((geofence) => {
+    return isPointInsideCircle(
+      latitude,
+      longitude,
+      geofence.latitude,
+      geofence.longitude,
+      geofence.radius
+    );
+  });
 
-### 3. Gerenciamento de Alertas
-Para evitar spam de notificações (flapping), implementamos um sistema de controle de frequência:
-*   Verifica-se o timestamp do último alerta enviado.
-*   Novos alertas só são disparados se `(agora - ultimo_alerta) > frequencia_configurada`.
+  // 3. Se não estiver dentro de nenhuma, considera violação
+  const isOutside = !isInsideAnyGeofence;
+
+  if (isOutside) {
+    // Dispara o alerta (com controle de frequência)
+    await sendGeofenceAlert(deviceId, latitude, longitude);
+  }
+
+  return isOutside;
+}
+```
+
+### 3. Assistente Inteligente com Google Gemini
+O sistema integra o LLM (Large Language Model) Google Gemini Pro para oferecer suporte aos cuidadores. O assistente possui contexto sobre o sistema e pode executar funções reais (Function Calling) para buscar dados.
+
+**Fluxo de Function Calling (`src/lib/services/gemini.ts`):**
+1.  Usuário pergunta: "Onde está o dispositivo?"
+2.  LLM analisa a intenção e decide chamar a ferramenta `getCurrentLocation`.
+3.  Sistema executa a função, busca os dados no Supabase.
+4.  Sistema devolve o resultado (JSON) para o LLM.
+5.  LLM gera a resposta em linguagem natural: "O dispositivo está na Rua X..."
 
 ## 🔌 Integração de Hardware (Universal)
 
@@ -73,7 +122,6 @@ Para integrar um novo dispositivo (ESP32, Arduino, Raspberry Pi, Rastreador GPS 
 Content-Type: application/json
 X-Device-ID: <SEU_ID_UNICO_DO_HARDWARE>
 ```
-*O `X-Device-ID` deve corresponder ao "ID do Hardware" cadastrado no painel do sistema.*
 
 **Body (JSON):**
 ```json
@@ -85,32 +133,67 @@ X-Device-ID: <SEU_ID_UNICO_DO_HARDWARE>
 }
 ```
 
-### Exemplo de Implementação (C++ / ESP32)
+## 💾 Modelagem de Dados (Schema)
 
-```cpp
-HTTPClient http;
-http.begin("https://alz-mvp.vercel.app/api/locations");
-http.addHeader("Content-Type", "application/json");
-http.addHeader("X-Device-ID", "ESP32-DEVICE-001");
+A estrutura do banco de dados (PostgreSQL) é composta pelas seguintes tabelas principais:
 
-String json = "{\"latitude\": -23.55, \"longitude\": -46.63, \"timestamp\": 1702904400, \"batteryLevel\": 90}";
-int httpResponseCode = http.POST(json);
+```sql
+-- Dispositivos rastreados
+CREATE TABLE devices (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id),
+  hardware_id VARCHAR(100) UNIQUE NOT NULL,
+  name VARCHAR(255),
+  patient_name VARCHAR(255),
+  battery_level DECIMAL(5,2),
+  last_location_at TIMESTAMP
+);
+
+-- Histórico de localizações (Série Temporal)
+CREATE TABLE locations (
+  id BIGSERIAL PRIMARY KEY,
+  device_id BIGINT REFERENCES devices(id),
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  timestamp TIMESTAMP,
+  battery_level DECIMAL(5,2)
+);
+
+-- Zonas Seguras
+CREATE TABLE geofences (
+  id BIGSERIAL PRIMARY KEY,
+  device_id BIGINT REFERENCES devices(id),
+  name VARCHAR(255),
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  radius DECIMAL(10, 2) -- Em metros
+);
 ```
 
-## 📂 Estrutura do Projeto
+## ⚠️ Troubleshooting e Desafios Comuns
 
-As principais pastas e responsabilidades:
+Seção dedicada à resolução de problemas comuns durante o desenvolvimento e uso do sistema.
 
-*   `src/app`: Rotas e páginas (App Router).
-    *   `(dashboard)`: Área logada (Mapas, Dispositivos, Alertas).
-    *   `api`: Endpoints da API (Webhooks, Locations, etc).
-*   `src/components`: Componentes React reutilizáveis.
-    *   `map`: Componentes de visualização de mapas (Google/Leaflet).
-    *   `geofences`: Editores e listas de zonas seguras.
-*   `src/lib`: Lógica de negócios e utilitários.
-    *   `services`: Lógica complexa (Geofence Checker, Alert Manager, AI).
-    *   `utils`: Funções matemáticas e formatadores.
-    *   `validations`: Schemas Zod para validação de dados.
+### 1. GPS Drift (Imprecisão do GPS)
+**Problema:** O dispositivo reporta falsas saídas da zona segura mesmo estando parado, devido a flutuações no sinal GPS.
+**Mitigação:**
+*   Aumentar o raio mínimo das geofences (recomendado: > 30 metros).
+*   No hardware, implementar filtro de média móvel para suavizar as coordenadas antes de enviar.
+
+### 2. Alertas Repetitivos (Flapping)
+**Problema:** O paciente fica na borda da zona segura, causando múltiplos alertas de "Saiu" e "Entrou" em curto período.
+**Solução:** O sistema implementa um *debounce* configurável (`alert_frequency_minutes`). Se um alerta foi enviado há menos de X minutos, novos alertas são suprimidos.
+
+### 3. Latência de Rede
+**Problema:** Demora na atualização do mapa.
+**Solução:** O frontend utiliza a diretiva `force-dynamic` nas páginas de mapa e componentes de atualização automática (`AutoReloadMap`) para garantir que os dados exibidos sejam sempre os mais recentes recebidos pelo backend.
+
+### 4. Erros de Configuração de Hardware
+**Problema:** O dispositivo envia dados mas eles não aparecem.
+**Verificações:**
+*   Confira se o `X-Device-ID` no header da requisição é EXATAMENTE igual ao cadastrado no painel (case-sensitive).
+*   Verifique se o timestamp enviado está em formato UNIX (segundos), não milissegundos.
+*   Valide se o JSON está bem formatado.
 
 ## 🚀 Como Rodar Localmente
 
@@ -126,7 +209,7 @@ As principais pastas e responsabilidades:
     ```
 
 3.  **Configure as variáveis de ambiente:**
-    Crie um arquivo `.env.local` com as chaves necessárias (Supabase, Clerk, Google Maps, etc).
+    Crie um arquivo `.env.local` com as chaves necessárias (Supabase, Clerk, Google Maps, Gemini).
 
 4.  **Rode o servidor de desenvolvimento:**
     ```bash
