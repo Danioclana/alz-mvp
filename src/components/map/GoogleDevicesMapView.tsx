@@ -35,13 +35,18 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
 
   // Encontrar a localização mais recente para centralizar o mapa
   const latestLocation = locations.find(loc => loc.isLatest !== false) || locations[0];
-  // Se não tiver localizacao, tentar usar a primeira geofence
-  const firstGeofence = geofences[0];
+  // Se não tiver localizacao, tentar usar a primeira geofence valida
+  const firstValidGeofence = geofences.find(g => 
+    typeof g.latitude === 'number' && 
+    typeof g.longitude === 'number' && 
+    !isNaN(g.latitude) && 
+    !isNaN(g.longitude)
+  );
 
   const center = latestLocation
     ? { lat: latestLocation.latitude, lng: latestLocation.longitude }
-    : firstGeofence 
-      ? { lat: firstGeofence.latitude, lng: firstGeofence.longitude }
+    : firstValidGeofence 
+      ? { lat: firstValidGeofence.latitude, lng: firstValidGeofence.longitude }
       : { lat: -23.550520, lng: -46.633308 };
 
   useEffect(() => {
@@ -56,6 +61,17 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
     const newCircles: google.maps.Circle[] = [];
     
     geofences.forEach(geofence => {
+      // Validate coordinates before creating circle
+      if (
+        typeof geofence.latitude !== 'number' || 
+        typeof geofence.longitude !== 'number' ||
+        isNaN(geofence.latitude) || 
+        isNaN(geofence.longitude)
+      ) {
+        console.warn('Invalid geofence coordinates:', geofence);
+        return;
+      }
+
       const circle = new google.maps.Circle({
         strokeColor: '#10b981', // Emerald 500
         strokeOpacity: 0.8,

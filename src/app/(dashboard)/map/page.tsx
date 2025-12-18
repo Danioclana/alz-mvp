@@ -76,13 +76,20 @@ async function getDevicesWithLocations(specificHardwareId?: string): Promise<Map
       .select('*')
       .in('device_id', deviceIds);
     
-    const formattedGeofences: Geofence[] = (geofencesData || []).map(g => ({
-      id: g.id,
-      name: g.name,
-      latitude: g.center_lat,
-      longitude: g.center_lng,
-      radius: g.radius
-    }));
+    const formattedGeofences: Geofence[] = (geofencesData || [])
+      .map(g => ({
+        id: g.id,
+        name: g.name,
+        latitude: g.center_lat,
+        longitude: g.center_lng,
+        radius: g.radius
+      }))
+      .filter(g => 
+        typeof g.latitude === 'number' && 
+        typeof g.longitude === 'number' && 
+        !isNaN(g.latitude) && 
+        !isNaN(g.longitude)
+      );
 
     // Para cada dispositivo, buscar as 2 últimas localizações
     const devicesWithLocations: DeviceLocation[] = [];
