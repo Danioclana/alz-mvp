@@ -54,11 +54,14 @@ async function getDevicesWithLocations(specificHardwareId?: string): Promise<Map
       .select('id, name, patient_name, hardware_id')
       .eq('user_id', userIdSupabase);
     
+    console.log('[getDevicesWithLocations] filtering by hardwareId:', specificHardwareId);
+
     if (specificHardwareId) {
       query = query.eq('hardware_id', specificHardwareId);
     }
 
     const { data: devices, error: devicesError } = await query;
+    console.log('[getDevicesWithLocations] devices found:', devices?.length);
 
     if (devicesError || !devices || devices.length === 0) {
       console.error('Error fetching devices:', devicesError);
@@ -150,6 +153,7 @@ export default async function MapPage({
   searchParams: Promise<{ device?: string }>;
 }) {
   const { device } = await searchParams;
+  console.log('[MapPage] searchParams device:', device);
   const { locations, geofences } = await getDevicesWithLocations(device);
 
   return (
