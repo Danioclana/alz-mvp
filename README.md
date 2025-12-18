@@ -96,15 +96,91 @@ export async function checkGeofenceViolation(
 }
 ```
 
-### 3. Assistente Inteligente com Google Gemini
-O sistema integra o LLM (Large Language Model) Google Gemini Pro para oferecer suporte aos cuidadores. O assistente possui contexto sobre o sistema e pode executar funções reais (Function Calling) para buscar dados.
+### 3. Assistente Inteligente com Google Gemini (Function Calling)
 
-**Fluxo de Function Calling (`src/lib/services/gemini.ts`):**
-1.  Usuário pergunta: "Onde está o dispositivo?"
-2.  LLM analisa a intenção e decide chamar a ferramenta `getCurrentLocation`.
-3.  Sistema executa a função, busca os dados no Supabase.
-4.  Sistema devolve o resultado (JSON) para o LLM.
-5.  LLM gera a resposta em linguagem natural: "O dispositivo está na Rua X..."
+O sistema integra o LLM Google Gemini Pro para oferecer suporte conversacional. O diferencial é o uso de **Function Calling** (Chamada de Função), que permite ao modelo executar ações reais no sistema.
+
+#### Exemplo de Fluxo de Function Calling:
+
+**1. Usuário envia:** "Onde está o meu pai?"
+
+**2. Gemini processa a intenção e retorna uma chamada de ferramenta:**
+```json
+{
+  "functionCall": {
+    "name": "getCurrentLocation",
+    "args": {
+      "deviceId": "ESP32-001" // Inferido do contexto ou perguntado
+    }
+  }
+}
+```
+
+**3. Sistema executa a função (Backend):**
+*   Busca a última localização no banco de dados.
+*   Retorna um JSON para o Gemini:
+    ```json
+    {
+      "latitude": -23.550520,
+      "longitude": -46.633308,
+      "timestamp": "2023-12-18T14:30:00Z",
+      "address": "Praça da Sé, São Paulo"
+    }
+    ```
+
+**4. Gemini gera a resposta final:**
+"Seu pai está na Praça da Sé, São Paulo. A última atualização foi há 5 minutos."
+
+---
+
+## 🗺️ Sistema de Mapas e Visualização
+
+### Visualização em Tempo Real
+O mapa exibe a localização dos dispositivos com as seguintes características:
+*   **Pontos Exibidos:** O sistema busca as **2 últimas localizações** de cada dispositivo. Isso permite traçar um vetor de direção (uma linha conectando o ponto anterior ao atual), dando ao cuidador uma noção visual do sentido do movimento.
+*   **Atualização Automática:** O componente `AutoReloadMap` força uma revalidação dos dados a cada 30 segundos, garantindo que o cuidador veja a posição real sem precisar recarregar a página manualmente (`window.location.reload()`).
+*   **Filtros:** Ao acessar via Dashboard geral, todos os dispositivos são mostrados. Ao acessar via "Detalhes do Dispositivo", o mapa foca e filtra apenas aquele hardware específico.
+
+### Cadastro de Geofences (Zonas Seguras)
+O processo de criação de zonas seguras utiliza a API de desenho do Google Maps (`DrawingManager`):
+1.  O usuário clica no mapa para definir o **centro** da zona.
+2.  Arrasta para definir o **raio** (em metros).
+3.  O frontend captura as coordenadas (`lat`, `lng`) e o raio (`radius`).
+4.  Esses dados são validados (Zod Schema) e enviados via `POST` para o Supabase.
+5.  Imediatamente, o backend passa a considerar essa nova geometria nos cálculos de segurança.
+
+---
+
+## 🚨 Sistema de Notificações e Alertas
+
+Os alertas são cruciais para a segurança do paciente. Utilizamos o serviço **Resend** para entrega confiável de emails.
+
+### Tipos de Alerta
+1.  **Violação de Perímetro (Geofence):** Quando o paciente sai de todas as zonas seguras.
+2.  **Bateria Baixa:** Quando o nível de carga cai abaixo de 20%.
+
+### Exemplo de Conteúdo de Alerta (Email)
+
+**Assunto:** 🚨 Alerta: Maria Silva saiu da área segura
+
+**Corpo (HTML Simplificado):**
+```html
+<div class="alert-box">
+  <strong>Maria Silva</strong> saiu da área segura configurada.
+</div>
+
+<div class="info-box">
+  <p><strong>Dispositivo:</strong> Rastreador 01</p>
+  <p><strong>Horário:</strong> 18/12/2025 14:30:00</p>
+  <p><strong>Localização:</strong> -23.550520, -46.633308</p>
+</div>
+
+<a href="https://maps.google.com/?q=-23.550520,-46.633308" class="button">
+  Ver Localização no Mapa
+</a>
+```
+
+---
 
 ## 🔌 Integração de Hardware (Universal)
 
@@ -175,18 +251,18 @@ CREATE TABLE geofences (
 Seção dedicada à resolução de problemas comuns durante o desenvolvimento e uso do sistema.
 
 ### 1. GPS Drift (Imprecisão do GPS)
-**Problema:** O dispositivo reporta falsas saídas da zona segura mesmo estando parado, devido a flutuações no sinal GPS.
+**Problema:** O dispositivo reporta falsas saídas da zona segura mesmo estando parado, devido a flutuações no sinal GPS (especialmente em ambientes internos ou dias nublados).
 **Mitigação:**
-*   Aumentar o raio mínimo das geofences (recomendado: > 30 metros).
+*   Aumentar o raio mínimo das geofences (recomendado: > 30 metros) para criar uma margem de erro.
 *   No hardware, implementar filtro de média móvel para suavizar as coordenadas antes de enviar.
 
 ### 2. Alertas Repetitivos (Flapping)
 **Problema:** O paciente fica na borda da zona segura, causando múltiplos alertas de "Saiu" e "Entrou" em curto período.
-**Solução:** O sistema implementa um *debounce* configurável (`alert_frequency_minutes`). Se um alerta foi enviado há menos de X minutos, novos alertas são suprimidos.
+**Solução:** O sistema implementa um *debounce* configurável (`alert_frequency_minutes`). Se um alerta foi enviado há menos de X minutos (padrão 30 min), novos alertas são suprimidos até que o tempo expire.
 
 ### 3. Latência de Rede
 **Problema:** Demora na atualização do mapa.
-**Solução:** O frontend utiliza a diretiva `force-dynamic` nas páginas de mapa e componentes de atualização automática (`AutoReloadMap`) para garantir que os dados exibidos sejam sempre os mais recentes recebidos pelo backend.
+**Solução:** O frontend utiliza a diretiva `force-dynamic` nas páginas de mapa e componentes de atualização automática (`AutoReloadMap`) para garantir que os dados exibidos sejam sempre os mais recentes recebidos pelo backend, evitando cache agressivo de páginas estáticas.
 
 ### 4. Erros de Configuração de Hardware
 **Problema:** O dispositivo envia dados mas eles não aparecem.
