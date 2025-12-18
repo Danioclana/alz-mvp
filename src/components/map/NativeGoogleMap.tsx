@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { useLoadScript } from '@react-google-maps/api';
 
 const libraries: ("places" | "drawing" | "geometry")[] = ['places', 'drawing', 'geometry'];
@@ -32,8 +32,6 @@ export const NativeGoogleMap = memo(function NativeGoogleMap({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries
   });
-
-  console.log('[NativeGoogleMap] Render', { center, zoom, hasMap: !!mapInstanceRef.current, isLoaded, loadError });
 
   useEffect(() => {
     if (!isLoaded || !mapRef.current || mapInstanceRef.current) return;
