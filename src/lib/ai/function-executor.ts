@@ -635,6 +635,44 @@ async function deleteDevice(deviceId: string, userId: number) {
 }
 
 /**
+ * Remove o "9" extra de números brasileiros para compatibilidade com CallMeBot
+ */
+function normalizeBrazilianPhone(phone: string): string {
+    // Remove tudo que não é dígito
+    const digitsOnly = phone.replace(/\D/g, '');
+
+    // Se é número brasileiro (começa com 55)
+    if (digitsOnly.startsWith('55')) {
+        // Verifica se tem 13 dígitos E o 5º caractere é 9 (após 55 + DDD de 2 dígitos)
+        // Ex: 5531989277806 -> o 5º caractere (índice 4) é "9"
+        if (digitsOnly.length === 13 && digitsOnly[4] === '9') {
+            // Remove o "9" na posição 4
+            return digitsOnly.slice(0, 4) + digitsOnly.slice(5);
+        }
+
+        // Se já tem 12 dígitos, pode já estar normalizado
+        if (digitsOnly.length === 12) {
+            return digitsOnly;
+        }
+
+        // Se tem 11 dígitos e o 3º caractere é 9 (sem código de país completo)
+        // Ex: 31989277806 -> assumir que falta o código do país
+        if (digitsOnly.length === 11 && digitsOnly[2] === '9') {
+            // Remove o "9" na posição 2
+            return digitsOnly.slice(0, 2) + digitsOnly.slice(3);
+        }
+
+        // Se tem menos de 11 dígitos mas começa com 55 e tem 9 na posição 4
+        // Ex: 55989277806 (11 dígitos) onde 98 é o DDD e o próximo é 9
+        if (digitsOnly.length >= 11 && digitsOnly.length < 13 && digitsOnly[4] === '9') {
+            return digitsOnly.slice(0, 4) + digitsOnly.slice(5);
+        }
+    }
+
+    return digitsOnly;
+}
+
+/**
  * Atualiza configurações de alerta
  */
 async function updateAlertConfig(
@@ -690,13 +728,16 @@ async function updateAlertConfig(
         }
     }
 
+    // Normalizar telefones novos
+    const normalizedNewPhones = params.phones ? params.phones.map(normalizeBrazilianPhone) : [];
+
     // Mesclar com novos valores (sem duplicatas)
     const newEmails = params.emails 
         ? [...new Set([...currentEmails, ...params.emails])] 
         : currentEmails;
         
     const newPhones = params.phones 
-        ? [...new Set([...currentPhones, ...params.phones])] 
+        ? [...new Set([...currentPhones, ...normalizedNewPhones])] 
         : currentPhones;
 
     // Reempacotar tudo em recipient_emails (padrão do sistema para compatibilidade)
