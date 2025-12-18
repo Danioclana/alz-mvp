@@ -585,21 +585,68 @@ async function updateAlertConfig(
         };
     }
 
-    const updates: any = {};
-    if (params.emails) updates.recipient_emails = params.emails;
-    if (params.phones) updates.recipient_phones = params.phones;
-    if (params.frequencyMinutes) updates.alert_frequency_minutes = params.frequencyMinutes;
+    // Buscar configuração atual para não sobrescrever
+    const { data: currentConfig } = await supabase
+        .from('alert_configs')
+        .select('*')
+        .eq('device_id', device.id)
+        .maybeSingle();
+
+    // Arrays atuais
+    let currentEmails: string[] = [];
+    let currentPhones: string[] = [];
+
+    if (currentConfig) {
+        // Separar emails e telefones da lista mista (formato compatível com route.ts)
+        const mixedList: string[] = currentConfig.recipient_emails || [];
+        
+        currentEmails = mixedList.filter(e => !e.startsWith('phone:'));
+        currentPhones = mixedList
+            .filter(e => e.startsWith('phone:'))
+            .map(e => e.replace('phone:', ''));
+            
+        // Se houver a coluna recipient_phones (migração 002), também considerar
+        if (currentConfig.recipient_phones && Array.isArray(currentConfig.recipient_phones)) {
+            currentPhones = [...currentPhones, ...currentConfig.recipient_phones];
+        }
+    }
+
+    // Mesclar com novos valores (sem duplicatas)
+    const newEmails = params.emails 
+        ? [...new Set([...currentEmails, ...params.emails])] 
+        : currentEmails;
+        
+    const newPhones = params.phones 
+        ? [...new Set([...currentPhones, ...params.phones])] 
+        : currentPhones;
+
+    // Reempacotar tudo em recipient_emails (padrão do sistema para compatibilidade)
+    const bundledEmails = [
+        ...newEmails,
+        ...newPhones.map(p => `phone:${p}`)
+    ];
+
+    const updates: any = {
+        recipient_emails: bundledEmails,
+        updated_at: new Date().toISOString()
+    };
+
+    if (params.frequencyMinutes !== undefined) updates.alert_frequency_minutes = params.frequencyMinutes;
     if (params.enabled !== undefined) updates.alerts_enabled = params.enabled;
 
+    // Usar upsert para criar se não existir
     const { error } = await supabase
         .from('alert_configs')
-        .update(updates)
-        .eq('device_id', device.id);
+        .upsert({
+            device_id: device.id,
+            ...updates
+        }, { onConflict: 'device_id' });
 
     if (error) {
+        console.error('[updateAlertConfig] DB Error:', error);
         return {
             success: false,
-            error: 'Erro ao atualizar configurações de alerta.',
+            error: 'Erro ao atualizar configurações de alerta no banco de dados.',
         };
     }
 
@@ -607,6 +654,11 @@ async function updateAlertConfig(
         success: true,
         data: {
             message: 'Configurações de alerta atualizadas com sucesso!',
+            currentSettings: {
+                emails: newEmails,
+                phones: newPhones,
+                enabled: params.enabled ?? currentConfig?.alerts_enabled ?? true
+            }
         },
     };
 }
