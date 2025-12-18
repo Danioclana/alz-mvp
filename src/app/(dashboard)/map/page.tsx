@@ -9,7 +9,32 @@ import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AutoReloadMap } from '@/components/map/AutoReloadMap';
 
-async function getDevicesWithLocations() {
+export const dynamic = 'force-dynamic';
+
+interface DeviceLocation {
+  latitude: number;
+  longitude: number;
+  deviceName: string;
+  patientName: string;
+  timestamp: string;
+  batteryLevel: number | null;
+  isLatest: boolean;
+}
+
+interface Geofence {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius: number;
+}
+
+interface MapData {
+  locations: DeviceLocation[];
+  geofences: Geofence[];
+}
+
+async function getDevicesWithLocations(specificHardwareId?: string): Promise<MapData> {
   const { userId } = await auth();
 
   if (!userId) {
@@ -20,26 +45,54 @@ async function getDevicesWithLocations() {
     const userIdSupabase = await ensureUserExists();
     if (!userIdSupabase) {
       console.error('Failed to sync user');
-      return [];
+      return { locations: [], geofences: [] };
     }
 
     const supabase = await createClient({ useServiceRole: true });
 
-    // Primeiro, buscar todos os dispositivos do usuário
-    const { data: devices, error: devicesError } = await supabase
+    // Primeiro, buscar dispositivos do usuário
+    let query = supabase
       .from('devices')
       .select('id, name, patient_name, hardware_id')
       .eq('user_id', userIdSupabase);
+    
+    if (specificHardwareId) {
+      query = query.eq('hardware_id', specificHardwareId);
+    }
+
+    const { data: devices, error: devicesError } = await query;
 
     if (devicesError || !devices || devices.length === 0) {
       console.error('Error fetching devices:', devicesError);
-      return [];
+      return { locations: [], geofences: [] };
     }
 
     console.log(`Found ${devices.length} devices`);
 
+    // Buscar Geofences para esses dispositivos
+    const deviceIds = devices.map(d => d.id);
+    const { data: geofencesData, error: geofenceError } = await supabase
+      .from('geofences')
+      .select('*')
+      .in('device_id', deviceIds);
+
+    const formattedGeofences: Geofence[] = (geofencesData || [])
+      .map(g => ({
+        id: g.id,
+        name: g.name,
+        latitude: g.latitude,
+        longitude: g.longitude,
+        radius: g.radius
+      }))
+      .filter(g => 
+        typeof g.latitude === 'number' && 
+        typeof g.longitude === 'number' && 
+        !isNaN(g.latitude) && 
+        !isNaN(g.longitude)
+      );
+
     // Para cada dispositivo, buscar as 2 últimas localizações
-    const devicesWithLocations: any[] = [];
+    const devicesWithLocations: DeviceLocation[] = [];
 
     for (const device of devices) {
       const { data: locations, error: locationsError } = await supabase
@@ -74,38 +127,39 @@ async function getDevicesWithLocations() {
 
     console.log(`Total locations to display: ${devicesWithLocations.length}`);
 
-    // Se não houver localizações, tentar buscar a primeira geofence como fallback
-    if (devicesWithLocations.length === 0) {
-      const { data: geofences } = await supabase
-        .from('geofences')
-        .select('*')
-        .eq('user_id', userIdSupabase)
-        .limit(1)
-        .single();
-
-      if (geofences) {
-        // Usar o centro da geofence como localização padrão
-        return [{
-          latitude: geofences.center_lat,
-          longitude: geofences.center_lng,
-          deviceName: 'Zona Segura',
-          patientName: geofences.name,
-          timestamp: new Date().toISOString(),
-          batteryLevel: null,
-          isLatest: true,
-        }];
-      }
+    // Se não houver localizações, tentar usar geofences como fallback
+    if (devicesWithLocations.length === 0 && formattedGeofences.length > 0) {
+      // Usar a primeira geofence encontrada
+      const geofence = formattedGeofences[0];
+       
+       return { 
+         locations: [{
+            latitude: geofence.latitude,
+            longitude: geofence.longitude,
+            deviceName: 'Zona Segura',
+            patientName: geofence.name,
+            timestamp: new Date().toISOString(),
+            batteryLevel: null,
+            isLatest: true,
+         }], 
+         geofences: formattedGeofences 
+       };
     }
 
-    return devicesWithLocations;
+    return { locations: devicesWithLocations, geofences: formattedGeofences };
   } catch (error) {
     console.error('Error fetching devices:', error);
-    return [];
+    return { locations: [], geofences: [] };
   }
 }
 
-export default async function MapPage() {
-  const locations = await getDevicesWithLocations();
+export default async function MapPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ device?: string }>;
+}) {
+  const { device } = await searchParams;
+  const { locations, geofences } = await getDevicesWithLocations(device);
 
   return (
     <div>
@@ -113,7 +167,9 @@ export default async function MapPage() {
       <div className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight text-foreground">Mapa de Localização</h1>
         <p className="text-muted-foreground mt-2">
-          Visualize a localização de todos os seus dispositivos em tempo real
+          {device 
+            ? 'Visualizando localização do dispositivo selecionado' 
+            : 'Visualize a localização de todos os seus dispositivos em tempo real'}
         </p>
       </div>
 
@@ -122,7 +178,7 @@ export default async function MapPage() {
           <CardTitle>Mapa Interativo</CardTitle>
         </CardHeader>
         <CardContent>
-          {locations.length === 0 ? (
+          {locations.length === 0 && geofences.length === 0 ? (
             <div className="bg-card/50 backdrop-blur-sm rounded-2xl flex items-center justify-center h-96 border border-border/50">
               <div className="text-center">
                 <div className="mx-auto h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
@@ -142,7 +198,11 @@ export default async function MapPage() {
               </div>
             </div>
           ) : (
-            <GoogleDevicesMapView locations={locations} height="600px" />
+            <GoogleDevicesMapView 
+              locations={locations} 
+              geofences={geofences}
+              height="600px" 
+            />
           )}
         </CardContent>
       </Card>

@@ -13,9 +13,10 @@ interface AlertConfigFormProps {
   hardwareId: string;
   initialConfig?: AlertConfig;
   onSave: (config: AlertConfig) => Promise<void>;
+  submitLabel?: string;
 }
 
-export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConfigFormProps) {
+export function AlertConfigForm({ hardwareId, initialConfig, onSave, submitLabel = 'Salvar Configurações' }: AlertConfigFormProps) {
   const [config, setConfig] = useState<AlertConfig>(
     initialConfig || {
       id: 0,
@@ -318,12 +319,12 @@ export function AlertConfigForm({ hardwareId, initialConfig, onSave }: AlertConf
 
       {/* Ações */}
       <div className="flex gap-4 pt-4">
-        <Button
-          onClick={handleSave}
+        <Button 
+          onClick={handleSave} 
+          className="w-full" 
           disabled={saving || (config.recipient_emails.length === 0 && (!config.recipient_phones || config.recipient_phones.length === 0))}
-          className="flex-1"
         >
-          {saving ? 'Salvando...' : 'Salvar Configurações'}
+          {saving ? 'Salvando...' : submitLabel}
         </Button>
       </div>
     </div>

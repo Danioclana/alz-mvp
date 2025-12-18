@@ -8,6 +8,7 @@ import { formatDate, formatRelativeTime, formatBatteryLevel } from '@/lib/utils/
 import { createClient } from '@/lib/supabase/server';
 import { ensureUserExists } from '@/lib/services/user-sync';
 import { Map, MapPin, Bell, History } from 'lucide-react';
+import { DeleteDeviceButton } from '@/components/devices/DeleteDeviceButton';
 
 async function getDevice(hardwareId: string) {
   const { userId } = await auth();
@@ -189,7 +190,7 @@ export default async function DeviceDetailPage({
         <Link href={`/devices/${device.hardware_id}/edit`}>
           <Button variant="secondary">Editar Dispositivo</Button>
         </Link>
-        <Button variant="danger">Excluir Dispositivo</Button>
+        <DeleteDeviceButton hardwareId={device.hardware_id} deviceName={device.name} />
       </div>
     </div>
   );
