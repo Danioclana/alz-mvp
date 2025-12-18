@@ -81,7 +81,6 @@ export function GoogleDevicesMapView({ locations, geofences = [], height = '600p
         map,
         center: { lat: geofence.latitude, lng: geofence.longitude },
         radius: geofence.radius,
-        title: geofence.name,
       });
 
       // Info window for geofence
