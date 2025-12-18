@@ -89,6 +89,8 @@ async function getCurrentLocation(deviceId: string, userId: number) {
         };
     }
 
+    console.log(`[getCurrentLocation] Retrieved coordinates for device ${deviceId}: Lat=${location.latitude}, Lon=${location.longitude}`);
+
     // Calcular tempo desde última atualização
     const lastUpdate = new Date(location.timestamp);
     const now = new Date();
