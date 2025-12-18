@@ -33,7 +33,7 @@ async function getSupabaseUserId(clerkUserId: string): Promise<number | null> {
 /**
  * Obtém a localização atual de um dispositivo
  */
-async function getCurrentLocation(deviceId: string, userId: string) {
+async function getCurrentLocation(deviceId: string, userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     // Verificar se o dispositivo pertence ao usuário
@@ -89,7 +89,7 @@ async function getCurrentLocation(deviceId: string, userId: string) {
 /**
  * Obtém o status completo de um dispositivo
  */
-async function getDeviceStatus(deviceId: string, userId: string) {
+async function getDeviceStatus(deviceId: string, userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     const { data: device, error } = await supabase
@@ -134,7 +134,7 @@ async function getDeviceStatus(deviceId: string, userId: string) {
 /**
  * Lista todas as zonas seguras de um dispositivo
  */
-async function listGeofences(deviceId: string, userId: string) {
+async function listGeofences(deviceId: string, userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     // Verificar permissão
@@ -190,24 +190,11 @@ async function createGeofence(
     latitude: number,
     longitude: number,
     radius: number,
-    clerkUserId: string
+    userId: number
 ) {
-    console.log('[createGeofence] Called with:', { deviceId, name, latitude, longitude, radius, clerkUserId });
+    console.log('[createGeofence] Called with:', { deviceId, name, latitude, longitude, radius, userId });
 
     const supabase = await createClient({ useServiceRole: true });
-
-    // Converter Clerk userId para Supabase user_id
-    const userId = await getSupabaseUserId(clerkUserId);
-
-    if (!userId) {
-        console.log('[createGeofence] User not found');
-        return {
-            success: false,
-            error: 'Usuário não encontrado.',
-        };
-    }
-
-    console.log('[createGeofence] Supabase userId:', userId);
 
     // Verificar permissão
     const { data: device, error: deviceError } = await supabase
@@ -273,7 +260,7 @@ async function createGeofence(
 /**
  * Obtém histórico de alertas
  */
-async function getAlertHistory(deviceId: string, days: number = 7, userId: string) {
+async function getAlertHistory(deviceId: string, days: number = 7, userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     // Verificar permissão
@@ -325,7 +312,7 @@ async function getAlertHistory(deviceId: string, days: number = 7, userId: strin
 /**
  * Obtém histórico de localizações
  */
-async function getLocationHistory(deviceId: string, hours: number = 24, userId: string) {
+async function getLocationHistory(deviceId: string, hours: number = 24, userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     // Verificar permissão
@@ -373,7 +360,7 @@ async function getLocationHistory(deviceId: string, hours: number = 24, userId: 
 /**
  * Lista todos os dispositivos do usuário
  */
-async function listDevices(userId: string) {
+async function listDevices(userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     const { data: devices, error } = await supabase
@@ -405,7 +392,7 @@ async function listDevices(userId: string) {
 /**
  * Analisa sugestões de geofence baseadas no histórico
  */
-async function analyzeGeofenceSuggestions(deviceId: string, days: number = 7, userId: string) {
+async function analyzeGeofenceSuggestions(deviceId: string, days: number = 7, userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     // Verificar permissão
@@ -507,7 +494,7 @@ async function geocodeAddress(address: string) {
 /**
  * Registra um novo dispositivo
  */
-async function registerDevice(hardwareId: string, name: string, patientName: string, userId: string) {
+async function registerDevice(hardwareId: string, name: string, patientName: string, userId: number) {
     const supabase = await createClient({ useServiceRole: true });
 
     // Verificar se já existe
@@ -573,7 +560,7 @@ async function registerDevice(hardwareId: string, name: string, patientName: str
  */
 async function updateAlertConfig(
     deviceId: string,
-    userId: string,
+    userId: number,
     params: {
         emails?: string[];
         phones?: string[];
@@ -629,7 +616,7 @@ async function updateAlertConfig(
  */
 async function updatePatientInfo(
     deviceId: string,
-    userId: string,
+    userId: number,
     params: {
         patientName?: string;
         deviceName?: string;
@@ -668,9 +655,20 @@ async function updatePatientInfo(
 export async function executeFunction(
     functionName: string,
     args: FunctionArgs,
-    userId: string
+    clerkUserId: string
 ): Promise<any> {
     try {
+        // Resolver Supabase ID uma única vez
+        const userId = await getSupabaseUserId(clerkUserId);
+
+        if (!userId) {
+            console.error('[executeFunction] User not found for Clerk ID:', clerkUserId);
+            return {
+                success: false,
+                error: 'Usuário não autenticado ou não encontrado no sistema.',
+            };
+        }
+
         switch (functionName) {
             case 'getCurrentLocation':
                 return await getCurrentLocation(args.deviceId, userId);
