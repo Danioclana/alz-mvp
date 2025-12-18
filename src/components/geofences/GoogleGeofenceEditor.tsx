@@ -25,7 +25,7 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
     radius: number;
   }>({
     name: '',
-    radius: 100,
+    radius: 20,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -278,7 +278,7 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
         radius: newGeofence.radius,
       });
 
-      setNewGeofence({ name: '', radius: 100 });
+      setNewGeofence({ name: '', radius: 20 });
       setIsCreating(false);
     } catch (error) {
       console.error('Error saving geofence:', error);
@@ -350,7 +350,7 @@ export function GoogleGeofenceEditor({ hardwareId, existingGeofences, onSave, on
                   setNewGeofence(prev => ({ ...prev, radius: value }));
                 }}
                 min={10}
-                max={300}
+                max={100}
                 step={5}
                 className="mt-2"
               />

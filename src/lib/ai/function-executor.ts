@@ -35,17 +35,24 @@ async function getSupabaseUserId(clerkUserId: string): Promise<number | null> {
  */
 async function reverseGeocode(lat: number, lon: number) {
     try {
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+            console.error('Missing Google Maps API Key');
+            return 'API Key missing';
+        }
+
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-            {
-                headers: {
-                    'User-Agent': 'AlzheimerCare/1.0',
-                },
-            }
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${apiKey}&language=pt-BR`
         );
 
         const data = await response.json();
-        return data.display_name || 'Endereço desconhecido';
+
+        if (data.status === 'OK' && data.results && data.results.length > 0) {
+            return data.results[0].formatted_address;
+        }
+
+        console.error('Google Geocoding error:', data.status);
+        return 'Endereço desconhecido';
     } catch (error) {
         console.error('Error reverse geocoding:', error);
         return 'Endereço indisponível';
@@ -564,34 +571,45 @@ async function analyzeGeofenceSuggestions(deviceId: string, days: number = 7, us
 /**
  * Converte endereço em coordenadas usando Nominatim (OpenStreetMap)
  */
+/**
+ * Converte endereço ou nome de local em coordenadas usando Google Maps
+ */
 async function geocodeAddress(address: string) {
     try {
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+            return {
+                success: false,
+                error: 'Erro de configuração: Chave da API do Google Maps não encontrada.',
+            };
+        }
+
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-            {
-                headers: {
-                    'User-Agent': 'AlzheimerCare/1.0',
-                },
-            }
+            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&language=pt-BR`
         );
 
         const data = await response.json();
 
-        if (!data || data.length === 0) {
+        if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+            // Tentar Places Text Search se Geocoding falhar (para POIs)
+            // Note: Geocoding API handles many POIs, but Places API is better.
+            // For now, let's stick to Geocoding API as it's simpler and usually sufficient for specific names like "Shopping X".
+            // If needed we can switch to Places API later.
             return {
                 success: false,
-                error: 'Endereço não encontrado. Tente ser mais específico.',
+                error: 'Endereço ou local não encontrado. Tente ser mais específico.',
             };
         }
 
-        const result = data[0];
+        const result = data.results[0];
+        const location = result.geometry.location;
 
         return {
             success: true,
             data: {
-                address: result.display_name,
-                latitude: parseFloat(result.lat),
-                longitude: parseFloat(result.lon),
+                address: result.formatted_address,
+                latitude: location.lat,
+                longitude: location.lng,
             },
         };
     } catch (error) {
@@ -780,12 +798,12 @@ async function updateAlertConfig(
     if (currentConfig) {
         // Separar emails e telefones da lista mista (formato compatível com route.ts)
         const mixedList: string[] = currentConfig.recipient_emails || [];
-        
+
         currentEmails = mixedList.filter(e => !e.startsWith('phone:'));
         currentPhones = mixedList
             .filter(e => e.startsWith('phone:'))
             .map(e => e.replace('phone:', ''));
-            
+
         // Se houver a coluna recipient_phones (migração 002), também considerar
         if (currentConfig.recipient_phones && Array.isArray(currentConfig.recipient_phones)) {
             currentPhones = [...currentPhones, ...currentConfig.recipient_phones];
@@ -796,12 +814,12 @@ async function updateAlertConfig(
     const normalizedNewPhones = params.phones ? params.phones.map(normalizeBrazilianPhone) : [];
 
     // Mesclar com novos valores (sem duplicatas)
-    const newEmails = params.emails 
-        ? [...new Set([...currentEmails, ...params.emails])] 
+    const newEmails = params.emails
+        ? [...new Set([...currentEmails, ...params.emails])]
         : currentEmails;
-        
-    const newPhones = params.phones 
-        ? [...new Set([...currentPhones, ...normalizedNewPhones])] 
+
+    const newPhones = params.phones
+        ? [...new Set([...currentPhones, ...normalizedNewPhones])]
         : currentPhones;
 
     // Reempacotar tudo em recipient_emails (padrão do sistema para compatibilidade)

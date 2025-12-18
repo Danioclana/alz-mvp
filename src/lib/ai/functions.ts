@@ -90,7 +90,7 @@ export const AVAILABLE_FUNCTIONS: FunctionDefinition[] = [
                 },
                 radius: {
                     type: 'number',
-                    description: 'Raio da zona em metros (mínimo 10, máximo 5000, padrão 100)',
+                    description: 'Raio da zona em metros (mínimo 10, máximo 5000, padrão 20)',
                 },
             },
             required: ['deviceId', 'name', 'latitude', 'longitude', 'radius'],
