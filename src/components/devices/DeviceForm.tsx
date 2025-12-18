@@ -77,8 +77,12 @@ export function DeviceForm({ initialData, isEditing = false }: DeviceFormProps) 
         return;
       }
 
-      // Sucesso - redirecionar para o device
-      router.push(`/devices/${data.hardware_id}`);
+      // Sucesso
+      if (isEditing) {
+        router.push(`/devices/${data.hardware_id}`);
+      } else {
+        router.push(`/alerts/${data.hardware_id}?new=true`);
+      }
       router.refresh();
     } catch (error) {
       setServerError('Erro ao salvar dispositivo. Tente novamente.');
