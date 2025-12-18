@@ -71,17 +71,17 @@ async function getDevicesWithLocations(specificHardwareId?: string): Promise<Map
 
     // Buscar Geofences para esses dispositivos
     const deviceIds = devices.map(d => d.id);
-    const { data: geofencesData } = await supabase
+    const { data: geofencesData, error: geofenceError } = await supabase
       .from('geofences')
       .select('*')
       .in('device_id', deviceIds);
-    
+
     const formattedGeofences: Geofence[] = (geofencesData || [])
       .map(g => ({
         id: g.id,
         name: g.name,
-        latitude: g.center_lat,
-        longitude: g.center_lng,
+        latitude: g.latitude,
+        longitude: g.longitude,
         radius: g.radius
       }))
       .filter(g => 
